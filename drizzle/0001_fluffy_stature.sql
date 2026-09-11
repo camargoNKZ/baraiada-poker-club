@@ -1,0 +1,1 @@
+CREATE INDEX `idx_players_status` ON `players` (`status`);

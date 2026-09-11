@@ -1,0 +1,36 @@
+'use client';
+
+import { Clock3, LoaderCircle, Trophy, Users } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { useTournamentState } from '@/hooks/use-tournament-state';
+import { money, payouts, prizePool, remainingSeconds } from '@/lib/tournament';
+
+function clock(total: number) { return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`; }
+
+export function DisplayBoard() {
+  const { state, error } = useTournamentState(5000);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  const pool = useMemo(() => state ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
+  if (!state) return <main className="grid min-h-screen place-items-center bg-[#0d0c0a]"><div className="text-center"><LoaderCircle className="mx-auto size-8 animate-spin text-[#c9a45a]" /><p className="mt-3 text-sm text-[#a48e6a]">Abrindo painel…</p>{error && <p className="mt-2 text-xs text-[#c36a56]">{error}</p>}</div></main>;
+  const active = state.players.filter((item) => item.status === 'active').sort((a, b) => b.chips - a.chips);
+  const awards = payouts(pool, state.tournament.payoutPlaces);
+  const remaining = remainingSeconds(state.tournament, now);
+  return (
+    <main className="display-bg min-h-screen p-5 text-[#f0e1b5] lg:p-8">
+      <header className="mx-auto mb-5 flex max-w-[1700px] items-center justify-between border-b border-[#c9a45a]/20 pb-5">
+        <div className="flex items-center gap-3"><span className="size-14 overflow-hidden rounded-full border-2 border-[#c9a45a]/60 shadow-[0_0_22px_rgba(201,164,90,.12)]"><img src="/baraiada-logo.jpg" alt="Baraiada Poker Club" width="56" height="56" className="size-full object-cover" /></span><div><p className="font-heading text-xl font-bold uppercase tracking-[.08em]">Baraiada</p><p className="text-[10px] font-bold uppercase tracking-[.2em] text-[#c9a45a]">Poker Club · Since 2025</p></div></div>
+        <Link href="/controle" className="rounded-full border border-[#c9a45a]/25 px-4 py-2 text-xs font-semibold text-[#a48e6a] hover:bg-[#c9a45a]/8 hover:text-[#f0e1b5]">Voltar ao controle</Link>
+      </header>
+      <div className="mx-auto grid max-w-[1700px] gap-4 xl:grid-cols-[1.2fr_.8fr]">
+        <section className="felt-card rounded-[24px] border border-[#c9a45a]/25 p-6 lg:p-9"><div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end"><div><div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[.16em] text-[#e0c477]"><span className="size-2 rounded-full bg-[#a8b878]" />{state.tournament.type}</div><h1 className="max-w-3xl text-3xl font-bold lg:text-5xl">{state.tournament.name}</h1><p className="mt-3 text-sm text-[#c7ae7e]">{active.length} jogadores em jogo · {state.players.length} registrados</p></div><div className="rounded-xl border border-[#c9a45a]/20 bg-black/20 px-6 py-4"><div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.14em] text-[#c7ae7e]"><Clock3 className="size-4 text-[#e0c477]" /> Próxima subida</div><p className="font-mono text-5xl font-semibold tracking-[-.06em]">{clock(remaining)}</p></div></div><div className="mt-8 grid grid-cols-3 gap-3 border-t border-[#c9a45a]/20 pt-6">{[['Small blind', state.tournament.smallBlind], ['Big blind', state.tournament.bigBlind], ['Ante', state.tournament.ante]].map(([label, value]) => <div key={String(label)}><p className="text-[10px] font-bold uppercase tracking-[.13em] text-[#b49d73]">{label}</p><p className="mt-2 font-mono text-2xl font-semibold">{Number(value).toLocaleString('pt-BR')}</p></div>)}</div></section>
+        <section className="rounded-[24px] border border-[#c9a45a]/25 bg-[linear-gradient(145deg,#2c1712,#17100c)] p-6 shadow-[inset_0_0_0_1px_rgba(201,164,90,.06)] lg:p-8"><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#c9a45a]">Premiação confirmada</p><p className="mt-3 font-heading text-4xl font-bold tracking-[-.02em]">{money(pool)}</p><p className="mt-2 text-xs text-[#a48e6a]">Divididos entre {state.tournament.payoutPlaces} posições</p><div className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{awards.map((value, index) => <div key={index} className={`flex items-center justify-between rounded-lg border px-4 py-3 ${index < 3 ? 'border-[#c9a45a]/25 bg-[#c9a45a]/8' : 'border-white/7 bg-black/10'}`}><span className="text-xs font-bold text-[#c7ae7e]">{index + 1}º lugar</span><strong className="font-mono text-sm text-[#f7edcf]">{money(value)}</strong></div>)}</div></section>
+      </div>
+      <div className="mx-auto mt-4 grid max-w-[1700px] gap-4 xl:grid-cols-[1.2fr_.8fr]">
+        <section className="panel rounded-[22px] border border-[#c9a45a]/18"><div className="flex items-center gap-2 border-b border-[#c9a45a]/15 px-6 py-5"><Trophy className="size-4 text-[#c9a45a]" /><h2 className="text-lg font-bold">Chip leaders</h2></div><div className="grid gap-1 p-3">{active.slice(0, 7).map((player, index) => <div key={player.id} className="grid grid-cols-[42px_1fr_auto_auto] items-center gap-3 rounded-lg px-3 py-3 even:bg-[#c9a45a]/[.035]"><span className={`grid size-8 place-items-center rounded-full text-xs font-bold ${index < 3 ? 'bg-[#c9a45a] text-[#171008]' : 'bg-white/7 text-[#a48e6a]'}`}>{index + 1}</span><div><p className="font-semibold text-[#f7edcf]">{player.name}</p><p className="mt-0.5 text-[10px] uppercase tracking-[.1em] text-[#8b7352]">{player.tableNo || 'Sem mesa'}</p></div><span className="hidden text-xs text-[#a48e6a] sm:block">{player.reentries}R · {player.addons}A</span><strong className="font-mono text-sm">{player.chips.toLocaleString('pt-BR')}</strong></div>)}{!active.length && <div className="py-12 text-center"><Users className="mx-auto size-8 text-[#6e593d]" /><p className="mt-3 text-sm text-[#a48e6a]">Aguardando jogadores</p></div>}</div></section>
+        <section className="panel rounded-[22px] border border-[#c9a45a]/18 p-6"><h2 className="text-lg font-bold">Resumo do field</h2><div className="mt-5 grid grid-cols-2 gap-3">{[['Ativos', active.length], ['Cadastrados', state.players.filter((p) => p.status === 'registered').length], ['Eliminados', state.players.filter((p) => p.status === 'eliminated').length], ['Entradas', state.players.reduce((s, p) => s + p.entries, 0)], ['Reentradas', state.players.reduce((s, p) => s + p.reentries, 0)], ['Add-ons', state.players.reduce((s, p) => s + p.addons, 0)]].map(([label, value]) => <div key={String(label)} className="rounded-lg border border-[#c9a45a]/12 bg-black/10 p-4"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#8b7352]">{label}</p><p className="mt-2 text-2xl font-semibold text-[#f7edcf]">{value}</p></div>)}</div></section>
+      </div>
+    </main>
+  );
+}

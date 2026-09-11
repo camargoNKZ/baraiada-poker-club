@@ -1,0 +1,18 @@
+'use client';
+
+import { FormEvent, useState } from 'react';
+
+export default function LoginPage() {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setLoading(true); setError('');
+    const response = await fetch('/api/auth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password }) });
+    if (response.ok) window.location.href = '/controle';
+    else { setError('Senha inválida.'); setLoading(false); }
+  }
+
+  return <main className="display-bg grid min-h-screen place-items-center px-5 text-[#f0e1b5]"><form onSubmit={submit} className="panel w-full max-w-sm rounded-[22px] border border-[#c9a45a]/25 p-7 shadow-2xl"><img src="/baraiada-logo.jpg" alt="Baraiada Poker Club" width="96" height="96" className="mx-auto size-24 rounded-full border-2 border-[#c9a45a] object-cover" /><p className="mt-5 text-center text-[10px] font-bold uppercase tracking-[.18em] text-[#c9a45a]">Painel administrativo</p><h1 className="mt-2 text-center font-heading text-2xl font-bold uppercase tracking-[.05em]">Acesso ao controle</h1><label className="mt-6 block text-[10px] font-bold uppercase tracking-[.13em] text-[#a48e6a]">Senha<input autoFocus type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 h-12 w-full rounded-lg border border-[#c9a45a]/25 bg-[#15100c] px-4 text-[#f7edcf] outline-none focus:border-[#c9a45a]" /></label>{error && <p className="mt-3 text-sm text-[#c36a56]">{error}</p>}<button disabled={loading || !password} className="mt-5 h-12 w-full rounded-lg bg-[#c9a45a] font-bold uppercase tracking-[.08em] text-[#171008] hover:bg-[#e0c477] disabled:opacity-50">{loading ? 'Entrando…' : 'Entrar'}</button><a href="/painel" className="mt-5 block text-center text-xs text-[#a48e6a] hover:text-[#f0e1b5]">Abrir painel de visualização</a></form></main>;
+}
