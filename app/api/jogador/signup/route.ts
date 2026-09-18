@@ -14,9 +14,16 @@ export async function POST(request: Request) {
 
     if (!email || !email.includes('@')) return Response.json({ error: 'Informe um e-mail válido.' }, { status: 400 });
     if (!name) return Response.json({ error: 'Informe seu nome completo.' }, { status: 400 });
+    if (!nickname) return Response.json({ error: 'Informe seu apelido.' }, { status: 400 });
+    if (!phone) return Response.json({ error: 'Informe seu telefone.' }, { status: 400 });
     if (password.length < 8) return Response.json({ error: 'A senha precisa ter pelo menos 8 caracteres.' }, { status: 400 });
 
     const db = getSupabase();
+
+    const existingPhone = await db.from('player_profiles').select('user_id').eq('phone', phone).maybeSingle();
+    if (existingPhone.error) throw existingPhone.error;
+    if (existingPhone.data) return Response.json({ error: 'Já existe uma conta cadastrada com esse telefone.' }, { status: 400 });
+
     const { data: created, error: createError } = await db.auth.admin.createUser({
       email,
       password,
@@ -31,7 +38,11 @@ export async function POST(request: Request) {
     if (!userId) return Response.json({ error: 'Não foi possível criar a conta.' }, { status: 500 });
 
     const inserted = await db.from('player_profiles').insert({ user_id: userId, name, nickname, phone, email, document, created_at: Date.now() });
-    if (inserted.error) return Response.json({ error: inserted.error.message }, { status: 500 });
+    if (inserted.error) {
+      await db.auth.admin.deleteUser(userId);
+      const message = inserted.error.code === '23505' ? 'Já existe uma conta cadastrada com esse telefone.' : inserted.error.message;
+      return Response.json({ error: message }, { status: 400 });
+    }
 
     return Response.json({ ok: true });
   } catch (error) {

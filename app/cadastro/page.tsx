@@ -44,9 +44,9 @@ export default function CadastroPage() {
 
       <div className="mt-6 grid gap-4">
         <label className={labelClass}>Nome completo<input required className={fieldClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-        <label className={labelClass}>Apelido<input className={fieldClass} placeholder="Opcional" value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} /></label>
+        <label className={labelClass}>Apelido<input required className={fieldClass} value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} /></label>
         <div className="grid grid-cols-2 gap-4">
-          <label className={labelClass}>Telefone<input className={fieldClass} placeholder="Opcional" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+          <label className={labelClass}>Telefone<input required className={fieldClass} placeholder="(00) 00000-0000" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
           <label className={labelClass}>CPF<input className={fieldClass} placeholder="Opcional" value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} /></label>
         </div>
         <label className={labelClass}>E-mail<input required type="email" className={fieldClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
