@@ -1,5 +1,6 @@
 import { getPlayerProfile } from '@/lib/player-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ export async function GET() {
     const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places').eq('status', 'active').maybeSingle();
     if (tournamentResult.error) throw tournamentResult.error;
     const tournamentRow = tournamentResult.data;
+    const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, profile.id), supportRoleLabel(db, profile.id)]);
 
     let player = null;
     let requests: ReturnType<typeof requestFromRow>[] = [];
@@ -40,9 +42,16 @@ export async function GET() {
       requests = (requestsResult.data ?? []).map(requestFromRow);
     }
 
+    const tournament = tournamentRow ? tournamentFromRow(tournamentRow) : null;
+    if (tournament && isSupport) {
+      tournament.entryValue = Math.max(0, tournament.entryValue - supportDiscountFor('entry'));
+      tournament.addonValue = Math.max(0, tournament.addonValue - supportDiscountFor('addon'));
+    }
+
     return Response.json({
       profile,
-      tournament: tournamentRow ? tournamentFromRow(tournamentRow) : null,
+      roleLabel,
+      tournament,
       player,
       requests,
     });

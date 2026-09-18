@@ -10,6 +10,9 @@ export default async function AdminsPage() {
   const admin = await getAdminUser();
   if (!admin) redirect('/login');
   const db = getSupabase();
-  const { data } = await db.from('admin_profiles').select('user_id, email, created_at').order('created_at', { ascending: true });
-  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} /><AdminsPanel admins={data ?? []} currentUserId={admin.id} /></main>;
+  const [staffResult, playersResult] = await Promise.all([
+    db.from('admin_profiles').select('user_id, email, name, nickname, phone, created_at').order('created_at', { ascending: true }),
+    db.from('player_profiles').select('user_id, name, nickname, phone, email, role, created_at').order('created_at', { ascending: true }),
+  ]);
+  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} /><AdminsPanel admins={staffResult.data ?? []} players={playersResult.data ?? []} currentUserId={admin.id} /></main>;
 }

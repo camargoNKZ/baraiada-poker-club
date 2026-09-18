@@ -1,5 +1,6 @@
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { isSupportProfile, supportDiscountFor } from '@/lib/dealer-discount';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,11 +102,14 @@ export async function POST(request: Request) {
 
       const amountMap: Record<string, number> = { entry: tournament.entry_value, reentry: tournament.reentry_value, addon: tournament.addon_value };
       const amount = amountMap[req.kind];
-      const total = amount * req.quantity;
+      const isSupport = await isSupportProfile(db, player.profile_id);
+      const discount = isSupport ? supportDiscountFor(req.kind) : 0;
+      const total = Math.max(0, amount * req.quantity - discount);
+      const note = discount > 0 ? [req.note, 'Desconto de apoio/dealer aplicado'].filter(Boolean).join(' — ') : (req.note || '');
 
       const txInserted = await db.from('financial_transactions').insert({
         tournament_id: tournament.id, player_id: player.id, kind: req.kind, quantity: req.quantity, unit_amount: amount,
-        total_amount: total, payment_method: '', note: req.note || '', created_at: Date.now(), voided_at: null,
+        total_amount: total, payment_method: '', note, created_at: Date.now(), voided_at: null,
       });
       if (txInserted.error) throw txInserted.error;
 

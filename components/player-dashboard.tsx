@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleDollarSign, Clock3, LoaderCircle, LogOut, Sparkles, Trophy, UserPlus } from 'lucide-react';
+import { CircleDollarSign, Clock3, ExternalLink, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import type { PlayerProfile } from '@/lib/player-auth';
 type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number };
 type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string };
 type PlayerRequest = { id: number; kind: string; quantity: number; status: string; note: string; requestedAt: number; resolvedAt: number | null };
-type JogadorState = { profile: PlayerProfile; tournament: Tournament | null; player: PlayerRow | null; requests: PlayerRequest[] };
+type JogadorState = { profile: PlayerProfile; roleLabel: string; tournament: Tournament | null; player: PlayerRow | null; requests: PlayerRequest[] };
 
 const kindLabel: Record<string, string> = { register: 'Inscrição', entry: 'Entrada', reentry: 'Reentrada', addon: 'Add-on' };
 const statusLabel: Record<string, { label: string; className: string }> = {
@@ -59,12 +59,16 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
   return (
     <main className="display-bg min-h-screen px-5 py-8 text-[#f0e1b5]">
       <div className="mx-auto max-w-2xl">
-        <header className="mb-6 flex items-center justify-between">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="size-11 overflow-hidden rounded-full border-2 border-[#c9a45a]"><img src="/baraiada-logo.jpg" alt="Baraiada Poker Club" width="44" height="44" className="size-full object-cover" /></span>
-            <div><p className="text-sm font-semibold">{state.profile.name}</p><p className="text-xs text-[#a48e6a]">{state.profile.email}</p></div>
+            <div><p className="flex items-center gap-2 text-sm font-semibold">{state.profile.name}<span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.08em] ${state.roleLabel === 'Jogador' ? 'bg-[#65d19e]/12 text-[#65d19e]' : 'bg-[#d7b66a]/15 text-[#d7b66a]'}`}>{state.roleLabel}</span></p><p className="text-xs text-[#a48e6a]">{state.profile.email}</p></div>
           </div>
-          <button onClick={logout} className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><LogOut className="size-3.5" /> Sair</button>
+          <div className="flex items-center gap-2">
+            <a href="/painel" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Tv className="size-3.5" /> Painel <ExternalLink className="size-3" /></a>
+            <a href="/ranking" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Trophy className="size-3.5" /> Ranking <ExternalLink className="size-3" /></a>
+            <button onClick={logout} className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><LogOut className="size-3.5" /> Sair</button>
+          </div>
         </header>
 
         {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
