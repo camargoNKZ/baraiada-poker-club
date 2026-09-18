@@ -153,6 +153,9 @@ export async function POST(request: Request) {
       if ((kind === 'reentry' || kind === 'addon') && Number(player.entries) < 1) {
         return Response.json({ error: 'Lance a primeira entrada antes de reentradas ou add-ons.' }, { status: 400 });
       }
+      if (kind === 'addon' && Number(player.addons) >= 1) {
+        return Response.json({ error: 'Você já lançou o add-on deste torneio.' }, { status: 400 });
+      }
 
       const amountMap: Record<string, number> = { entry: tournament.entry_value, reentry: tournament.reentry_value, addon: tournament.addon_value };
       const amount = amountMap[kind];

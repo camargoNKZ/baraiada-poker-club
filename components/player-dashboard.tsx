@@ -110,7 +110,9 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                     ) : (
                       <>
                         <Button disabled={sending || pendingKinds.has('reentry')} onClick={() => sendRequest('reentry')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> {pendingKinds.has('reentry') ? 'Reentrada solicitada' : `Solicitar reentrada (${money(state.tournament.reentryValue)})`}</Button>
-                        <Button disabled={sending || pendingKinds.has('addon')} onClick={() => sendRequest('addon')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> {pendingKinds.has('addon') ? 'Add-on solicitado' : `Solicitar add-on (${money(state.tournament.addonValue)})`}</Button>
+                        {state.player.addons < 1 && (
+                          <Button disabled={sending || pendingKinds.has('addon')} onClick={() => sendRequest('addon')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> {pendingKinds.has('addon') ? 'Add-on solicitado' : `Solicitar add-on (${money(state.tournament.addonValue)})`}</Button>
+                        )}
                       </>
                     )}
                   </div>

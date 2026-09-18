@@ -99,6 +99,7 @@ export async function POST(request: Request) {
       if (playerResult.error) throw playerResult.error;
       const player = playerResult.data;
       if (!player) return Response.json({ error: 'Jogador da solicitação não encontrado.' }, { status: 400 });
+      if (req.kind === 'addon' && Number(player.addons) >= 1) return Response.json({ error: 'Este jogador já lançou o add-on deste torneio. Recuse a solicitação.' }, { status: 400 });
 
       const amountMap: Record<string, number> = { entry: tournament.entry_value, reentry: tournament.reentry_value, addon: tournament.addon_value };
       const amount = amountMap[req.kind];

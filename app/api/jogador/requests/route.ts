@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const tournament = tournamentResult.data;
     if (!tournament) return Response.json({ error: 'Não há torneio ativo no momento.' }, { status: 400 });
 
-    const playerResult = await db.from('players').select('id, entries').eq('tournament_id', tournament.id).eq('profile_id', profile.id).maybeSingle();
+    const playerResult = await db.from('players').select('id, entries, addons').eq('tournament_id', tournament.id).eq('profile_id', profile.id).maybeSingle();
     if (playerResult.error) throw playerResult.error;
     const player = playerResult.data;
 
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     } else {
       if (!player) return Response.json({ error: 'Inscreva-se no torneio antes de solicitar lançamentos.' }, { status: 400 });
       if ((kind === 'reentry' || kind === 'addon') && Number(player.entries) < 1) return Response.json({ error: 'Sua entrada ainda precisa ser aprovada antes de reentradas ou add-ons.' }, { status: 400 });
+      if (kind === 'addon' && Number(player.addons) >= 1) return Response.json({ error: 'Você já lançou o add-on deste torneio.' }, { status: 400 });
     }
 
     const pendingResult = await db.from('player_requests').select('id').eq('tournament_id', tournament.id).eq('profile_id', profile.id).eq('kind', kind).eq('status', 'pending').maybeSingle();

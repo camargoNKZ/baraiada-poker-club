@@ -96,6 +96,7 @@ export async function POST(request: Request) {
       const player = playerResult.data;
       if (!player || !['entry', 'reentry', 'addon', 'payment'].includes(kind)) return Response.json({ error: 'Lançamento inválido.' }, { status: 400 });
       if (['reentry', 'addon'].includes(kind) && player.entries < 1) return Response.json({ error: 'Lance a primeira entrada antes de reentradas ou add-ons.' }, { status: 400 });
+      if (kind === 'addon' && player.addons >= 1) return Response.json({ error: 'Este jogador já lançou o add-on deste torneio.' }, { status: 400 });
       const total = kind === 'payment' ? -amount : amount * quantity;
       const inserted = await db.from('financial_transactions').insert({ tournament_id: current.id, player_id: playerId, kind, quantity: kind === 'payment' ? 1 : quantity, unit_amount: amount, total_amount: total, payment_method: String(body.paymentMethod ?? ''), note: String(body.note ?? ''), created_at: Date.now(), voided_at: null }); if (inserted.error) throw inserted.error;
       const fieldMap: Record<string, string> = { entry: 'entries', reentry: 'reentries', addon: 'addons' };

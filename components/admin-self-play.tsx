@@ -103,7 +103,9 @@ export function AdminSelfPlay() {
                 <>
                   <Button disabled={busy} onClick={() => launch('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada ({money(state.tournament.reentryValue)})</Button>
                   <Button disabled={busy} onClick={() => launch('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
-                  <Button disabled={busy} onClick={() => launch('addon', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> Add-on ({money(state.tournament.addonValue)})</Button>
+                  {(state.player?.addons ?? 0) < 1 && (
+                    <Button disabled={busy} onClick={() => launch('addon', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> Add-on ({money(state.tournament.addonValue)})</Button>
+                  )}
                 </>
               )}
             </div>
