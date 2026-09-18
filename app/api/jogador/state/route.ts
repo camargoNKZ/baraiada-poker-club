@@ -8,11 +8,11 @@ export const dynamic = 'force-dynamic';
 type Row = Record<string, any>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, currentLevel: row.current_level ?? 0 };
 }
 
 function playerFromRow(row: Row) {
-  return { id: Number(row.id), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no };
+  return { id: Number(row.id), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, selfEliminated: Boolean(row.self_eliminated), farewellMessage: row.farewell_message ?? '' };
 }
 
 function requestFromRow(row: Row) {
@@ -31,7 +31,7 @@ export async function GET() {
     if (!profile) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
 
     const db = getSupabase();
-    const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places').eq('status', 'active').maybeSingle();
+    const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level').eq('status', 'active').maybeSingle();
     if (tournamentResult.error) throw tournamentResult.error;
     const tournamentRow = tournamentResult.data;
     const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, profile.id), supportRoleLabel(db, profile.id)]);
@@ -43,7 +43,7 @@ export async function GET() {
     let pool = 0;
 
     if (tournamentRow) {
-      const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no').eq('tournament_id', tournamentRow.id).eq('profile_id', profile.id).maybeSingle();
+      const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no, self_eliminated, farewell_message').eq('tournament_id', tournamentRow.id).eq('profile_id', profile.id).maybeSingle();
       if (playerResult.error) throw playerResult.error;
       player = playerResult.data ? playerFromRow(playerResult.data) : null;
 

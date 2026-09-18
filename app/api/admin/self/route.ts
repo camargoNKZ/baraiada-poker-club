@@ -9,11 +9,11 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, currentLevel: row.current_level ?? 0 };
 }
 
 function playerFromRow(row: Row) {
-  return { id: Number(row.id), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no };
+  return { id: Number(row.id), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, selfEliminated: Boolean(row.self_eliminated), farewellMessage: row.farewell_message ?? '' };
 }
 
 const kindLabel: Record<string, string> = { entry: 'Entrada', reentry: 'Reentrada', addon: 'Add-on', payment: 'Pagamento' };
@@ -33,7 +33,7 @@ async function ensurePlayerProfile(db: Db, admin: { id: string; name: string; ni
 }
 
 async function buildSelfState(db: Db, admin: { id: string; name: string; nickname: string; phone: string; email: string }) {
-  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places').eq('status', 'active').maybeSingle();
+  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level').eq('status', 'active').maybeSingle();
   if (tournamentResult.error) throw tournamentResult.error;
   const tournamentRow = tournamentResult.data;
   const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, admin.id), supportRoleLabel(db, admin.id)]);
@@ -44,7 +44,7 @@ async function buildSelfState(db: Db, admin: { id: string; name: string; nicknam
   let pool = 0;
 
   if (tournamentRow) {
-    const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no').eq('tournament_id', tournamentRow.id).eq('profile_id', admin.id).maybeSingle();
+    const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no, self_eliminated, farewell_message').eq('tournament_id', tournamentRow.id).eq('profile_id', admin.id).maybeSingle();
     if (playerResult.error) throw playerResult.error;
     player = playerResult.data ? playerFromRow(playerResult.data) : null;
 
@@ -124,6 +124,28 @@ export async function POST(request: Request) {
 
     const linked = await ensurePlayerProfile(db, admin);
     if (!linked) return Response.json({ error: 'Vincule seu cadastro de jogador antes de lançar valores.' }, { status: 400 });
+
+    if (action === 'eliminate') {
+      const message = String(body.message ?? '').trim().slice(0, 240);
+      const tournamentResult = await db.from('tournaments').select('id, current_level').eq('status', 'active').maybeSingle();
+      if (tournamentResult.error) throw tournamentResult.error;
+      const tournament = tournamentResult.data;
+      if (!tournament) return Response.json({ error: 'Não há torneio ativo no momento.' }, { status: 400 });
+      if (Number(tournament.current_level ?? 0) < 1) return Response.json({ error: 'A eliminação só pode ser reportada após o primeiro intervalo do torneio.' }, { status: 400 });
+
+      const playerResult = await db.from('players').select('id, status, entries').eq('tournament_id', tournament.id).eq('profile_id', admin.id).maybeSingle();
+      if (playerResult.error) throw playerResult.error;
+      const player = playerResult.data;
+      if (!player || Number(player.entries) < 1) return Response.json({ error: 'Lance sua entrada antes de reportar eliminação.' }, { status: 400 });
+      if (player.status === 'eliminated') return Response.json({ error: 'Você já está marcado como eliminado.' }, { status: 400 });
+
+      const updated = await db.from('players').update({ status: 'eliminated', eliminated_at: Date.now(), self_eliminated: true, farewell_message: message }).eq('id', player.id);
+      if (updated.error) throw updated.error;
+      const tournamentUpdated = await db.from('tournaments').update({ last_elimination_name: admin.name, last_elimination_at: Date.now(), last_elimination_message: message }).eq('id', tournament.id);
+      if (tournamentUpdated.error) throw tournamentUpdated.error;
+
+      return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
+    }
 
     if (action === 'launch') {
       const kind = String(body.kind ?? '');

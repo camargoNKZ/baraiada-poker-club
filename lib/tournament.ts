@@ -2,7 +2,8 @@ export type Tournament = {
   id: number; name: string; type: string; entryValue: number; reentryValue: number;
   addonValue: number; payoutPlaces: number; levelMinutes: number; smallBlind: number;
   bigBlind: number; ante: number; timerStartedAt: number | null; timerPausedSeconds: number; updatedAt: number;
-  status: 'active' | 'finished'; finishedAt: number | null;
+  status: 'active' | 'finished'; finishedAt: number | null; currentLevel: number;
+  lastEliminationName: string; lastEliminationAt: number | null; lastEliminationMessage: string;
 };
 
 export const RANKING_POINTS = [10, 7, 5, 3, 1];
@@ -13,7 +14,7 @@ export function pointsForPosition(position: number) {
 
 export type Player = {
   id: number; name: string; nickname: string; phone: string; email: string; document: string; notes: string; status: string; entries: number; reentries: number;
-  addons: number; chips: number; tableNo: string; eliminatedAt: number | null; createdAt: number;
+  addons: number; chips: number; tableNo: string; eliminatedAt: number | null; createdAt: number; selfEliminated: boolean; farewellMessage: string;
 };
 
 export type FinancialTransaction = {
@@ -28,7 +29,8 @@ export const defaultTournament: Tournament = {
   entryValue: 50000, reentryValue: 50000, addonValue: 30000, payoutPlaces: 5,
   levelMinutes: 20, smallBlind: 1000, bigBlind: 2000, ante: 2000,
   timerStartedAt: null, timerPausedSeconds: 20 * 60, updatedAt: Date.now(),
-  status: 'active', finishedAt: null,
+  status: 'active', finishedAt: null, currentLevel: 0,
+  lastEliminationName: '', lastEliminationAt: null, lastEliminationMessage: '',
 };
 
 export function prizePool(tournament: Tournament, players: Player[], transactions?: FinancialTransaction[]) {

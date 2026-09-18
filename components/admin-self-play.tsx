@@ -1,12 +1,12 @@
 'use client';
 
-import { CircleDollarSign, Copy, LoaderCircle, Sparkles } from 'lucide-react';
+import { CircleDollarSign, Copy, Flag, LoaderCircle, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { money } from '@/lib/tournament';
 
-type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number };
-type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string };
+type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; currentLevel: number };
+type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
 type Accounting = { charged: number; paid: number; balance: number };
 type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: number; createdAt: number };
 type SelfProfile = { name: string; nickname: string; phone: string; email: string };
@@ -28,6 +28,8 @@ export function AdminSelfPlay() {
   const [busy, setBusy] = useState(false);
   const [nickname, setNickname] = useState('');
   const [phone, setPhone] = useState('');
+  const [eliminating, setEliminating] = useState(false);
+  const [farewell, setFarewell] = useState('');
 
   const refresh = useCallback(async () => {
     try {
@@ -57,6 +59,15 @@ export function AdminSelfPlay() {
     setBusy(false);
     if (!response.ok) { setError(data.error || 'Não foi possível lançar.'); return; }
     setState(data); setError('');
+  }
+
+  async function reportElimination() {
+    setBusy(true); setError('');
+    const response = await fetch('/api/admin/self', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'eliminate', message: farewell }) });
+    const data = await response.json() as SelfState & { error?: string };
+    setBusy(false);
+    if (!response.ok) { setError(data.error || 'Não foi possível reportar a eliminação.'); return; }
+    setState(data); setError(''); setEliminating(false); setFarewell('');
   }
 
   if (!state) return <div className="panel grid min-h-[240px] place-items-center rounded-[22px] border border-white/8"><LoaderCircle className="size-6 animate-spin text-[#d7b66a]" /></div>;
@@ -106,9 +117,31 @@ export function AdminSelfPlay() {
                   {(state.player?.addons ?? 0) < 1 && (
                     <Button disabled={busy} onClick={() => launch('addon', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> Add-on ({money(state.tournament.addonValue)})</Button>
                   )}
+                  {state.player?.status === 'active' && (
+                    <Button disabled={busy || state.tournament.currentLevel < 1} onClick={() => setEliminating(true)} variant="outline" className="h-10 border-[#d88383]/30 bg-[#d88383]/8 px-4 text-[#e5a0a0] hover:bg-[#d88383]/15"><Flag className="size-4" /> {state.tournament.currentLevel < 1 ? 'Eliminação (após o 1º intervalo)' : 'Reportar eliminação'}</Button>
+                  )}
                 </>
               )}
             </div>
+
+            {eliminating && (
+              <div className="mt-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/8 p-4">
+                <p className="mb-2 text-xs font-semibold text-[#e5a0a0]">Confirmar eliminação — você será marcado como eliminado deste torneio.</p>
+                <textarea value={farewell} onChange={(e) => setFarewell(e.target.value)} maxLength={240} placeholder="Mensagem de despedida (opcional)" className="h-20 w-full rounded-lg border border-white/10 bg-[#081f18] p-3 text-sm text-white placeholder:text-[#526960]" />
+                <div className="mt-3 flex gap-2">
+                  <Button disabled={busy} onClick={reportElimination} className="h-9 bg-[#d88383] px-4 font-bold text-[#2b0f0f] hover:bg-[#e5a0a0]">Confirmar eliminação</Button>
+                  <Button type="button" disabled={busy} onClick={() => { setEliminating(false); setFarewell(''); }} variant="ghost" className="h-9 text-[#8da79e] hover:bg-white/5 hover:text-white">Cancelar</Button>
+                </div>
+              </div>
+            )}
+
+            {state.player?.status === 'eliminated' && (
+              state.player.selfEliminated ? (
+                <div className="mt-4 rounded-xl border border-white/8 bg-black/10 p-4 text-sm text-[#a48e6a]">Você reportou sua eliminação.{state.player.farewellMessage && <span className="mt-1 block italic text-[#dce5e1]">"{state.player.farewellMessage}"</span>}</div>
+              ) : (
+                <div className="mt-4 rounded-xl border border-[#e3c578]/25 bg-[#e3c578]/8 p-4 text-sm text-[#e3c578]">Sua eliminação foi lançada por um administrador — como não foi você quem reportou, você fica inelegível para pontos neste torneio.</div>
+              )
+            )}
           </section>
 
           {state.player && (

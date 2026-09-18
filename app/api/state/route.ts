@@ -8,7 +8,7 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at, currentLevel: row.current_level ?? 0, lastEliminationName: row.last_elimination_name ?? '', lastEliminationAt: row.last_elimination_at ?? null, lastEliminationMessage: row.last_elimination_message ?? '' };
 }
 
 function tournamentToRow(row: typeof defaultTournament) {
@@ -16,7 +16,7 @@ function tournamentToRow(row: typeof defaultTournament) {
 }
 
 function playerFromRow(row: Row) {
-  return { id: Number(row.id), name: row.name, nickname: row.nickname, phone: row.phone, email: row.email, document: row.document, notes: row.notes, status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, eliminatedAt: row.eliminated_at, createdAt: row.created_at };
+  return { id: Number(row.id), name: row.name, nickname: row.nickname, phone: row.phone, email: row.email, document: row.document, notes: row.notes, status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, eliminatedAt: row.eliminated_at, createdAt: row.created_at, selfEliminated: Boolean(row.self_eliminated), farewellMessage: row.farewell_message ?? '' };
 }
 
 function transactionFromRow(row: Row) {
@@ -110,12 +110,15 @@ export async function POST(request: Request) {
       const fieldMap: Record<string, string> = { entry: 'entries', reentry: 'reentries', addon: 'addons' };
       if (fieldMap[transaction.kind]) { const playerResult = await db.from('players').select('*').eq('id', transaction.player_id).maybeSingle(); if (playerResult.error) throw playerResult.error; const player = playerResult.data; if (player) { const field = fieldMap[transaction.kind]; const nextCount = Math.max(0, Number(player[field]) - Number(transaction.quantity)); const updated = await db.from('players').update({ [field]: nextCount, ...(transaction.kind === 'entry' && nextCount === 0 ? { status: 'registered', eliminated_at: null } : {}) }).eq('id', transaction.player_id); if (updated.error) throw updated.error; } }
     } else if (action === 'eliminate') {
-      const active = Boolean(body.active); const result = await db.from('players').update({ status: active ? 'active' : 'eliminated', eliminated_at: active ? null : Date.now() }).eq('id', Number(body.playerId)).eq('tournament_id', current.id); if (result.error) throw result.error;
+      const active = Boolean(body.active);
+      const values: Row = { status: active ? 'active' : 'eliminated', eliminated_at: active ? null : Date.now() };
+      if (active) { values.self_eliminated = false; values.farewell_message = ''; }
+      const result = await db.from('players').update(values).eq('id', Number(body.playerId)).eq('tournament_id', current.id); if (result.error) throw result.error;
     } else if (action === 'updatePlayer') {
       const result = await db.from('players').update({ chips: Math.max(0, Number(body.chips) || 0), table_no: String(body.tableNo ?? '') }).eq('id', Number(body.playerId)).eq('tournament_id', current.id); if (result.error) throw result.error;
     } else if (action === 'timer') {
       const command = String(body.command); let values: Row;
-      if (command === 'reset') values = { timer_started_at: null, timer_paused_seconds: current.levelMinutes * 60, updated_at: Date.now() };
+      if (command === 'reset') values = { timer_started_at: null, timer_paused_seconds: current.levelMinutes * 60, updated_at: Date.now(), current_level: current.currentLevel + 1 };
       else if (current.timerStartedAt) values = { timer_started_at: null, timer_paused_seconds: remainingSeconds(current), updated_at: Date.now() };
       else values = { timer_started_at: Date.now(), updated_at: Date.now() };
       const result = await db.from('tournaments').update(values).eq('id', current.id); if (result.error) throw result.error;
@@ -130,7 +133,10 @@ export async function POST(request: Request) {
       });
       const pool = ranked.reduce((sum, p) => sum + p.entries * current.entryValue + p.reentries * current.reentryValue + p.addons * current.addonValue, 0);
       const prizeList = payouts(pool, current.payoutPlaces);
-      const resultsRows = ranked.map((p, index) => ({ tournament_id: current.id, player_id: p.id, player_name: p.name, position: index + 1, points: pointsForPosition(index + 1), prize_amount: prizeList[index] ?? 0, created_at: Date.now() }));
+      const resultsRows = ranked.map((p, index) => {
+        const eligible = p.status === 'active' || Boolean(p.self_eliminated);
+        return { tournament_id: current.id, player_id: p.id, player_name: p.name, position: index + 1, points: eligible ? pointsForPosition(index + 1) : 0, prize_amount: prizeList[index] ?? 0, created_at: Date.now() };
+      });
       if (resultsRows.length) { const insertedResults = await db.from('tournament_results').insert(resultsRows); if (insertedResults.error) throw insertedResults.error; }
       const closed = await db.from('tournaments').update({ status: 'finished', finished_at: Date.now() }).eq('id', current.id); if (closed.error) throw closed.error;
       return Response.json(await loadState(true));
