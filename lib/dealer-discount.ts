@@ -23,3 +23,26 @@ export async function supportRoleLabel(db: ReturnType<typeof getSupabase>, profi
   if (profileResult.data?.role !== 'apoio') return 'Jogador';
   return adminResult.data ? 'Dealer' : 'Apoio';
 }
+
+export async function recomputeSupportTransactions(db: ReturnType<typeof getSupabase>, profileId: string) {
+  const tournamentResult = await db.from('tournaments').select('id').eq('status', 'active').maybeSingle();
+  if (tournamentResult.error) throw tournamentResult.error;
+  const tournament = tournamentResult.data;
+  if (!tournament) return;
+
+  const playerResult = await db.from('players').select('id').eq('tournament_id', tournament.id).eq('profile_id', profileId).maybeSingle();
+  if (playerResult.error) throw playerResult.error;
+  const player = playerResult.data;
+  if (!player) return;
+
+  const isSupport = await isSupportProfile(db, profileId);
+  const txResult = await db.from('financial_transactions').select('id, kind, quantity, unit_amount').eq('player_id', player.id).in('kind', ['entry', 'addon']).is('voided_at', null);
+  if (txResult.error) throw txResult.error;
+
+  for (const tx of txResult.data ?? []) {
+    const discount = isSupport ? supportDiscountFor(tx.kind) : 0;
+    const total = Math.max(0, tx.unit_amount * tx.quantity - discount);
+    const updated = await db.from('financial_transactions').update({ total_amount: total }).eq('id', tx.id);
+    if (updated.error) throw updated.error;
+  }
+}
