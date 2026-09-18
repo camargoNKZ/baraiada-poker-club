@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, Inbox, LogOut, Menu, Settings2, Trophy, Tv, UserCog, X } from 'lucide-react';
+import { CircleDollarSign, ExternalLink, Inbox, LogOut, Menu, Settings2, Trophy, Tv, UserCog, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/controle', label: 'Controle', icon: Settings2 },
   { href: '/controle/solicitacoes', label: 'Solicitações', icon: Inbox },
   { href: '/controle/admins', label: 'Equipe', icon: UserCog },
+  { href: '/controle/meu-jogo', label: 'Meu Jogo', icon: CircleDollarSign },
   { href: '/ranking', label: 'Ranking', icon: Trophy, external: true },
   { href: '/painel', label: 'Painel', icon: Tv, external: true },
 ];
