@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, LogOut, Settings2, Trophy, Tv, UserCog } from 'lucide-react';
+import { ExternalLink, Inbox, LogOut, Settings2, Trophy, Tv, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
@@ -24,6 +24,7 @@ export function SiteHeader({ adminEmail }: { adminEmail?: string } = {}) {
         </Link>
         <nav aria-label="Áreas do sistema" className="flex items-center rounded-full border border-white/8 bg-white/[0.035] p-1">
           <Link href="/controle" className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition ${pathname === '/controle' ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Settings2 className="size-3.5" /> Controle</Link>
+          <Link href="/controle/solicitacoes" className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition ${pathname === '/controle/solicitacoes' ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Inbox className="size-3.5" /> Solicitações</Link>
           <Link href="/controle/admins" className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition ${pathname === '/controle/admins' ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><UserCog className="size-3.5" /> Admins</Link>
           <Link href="/ranking" target="_blank" className="flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold text-[#a48e6a] transition hover:text-[#f0e1b5]"><Trophy className="size-3.5" /> Ranking <ExternalLink className="hidden size-3 sm:block" /></Link>
           <Link href="/painel" target="_blank" className="flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold text-[#a48e6a] transition hover:text-[#f0e1b5]"><Tv className="size-3.5" /> Painel <ExternalLink className="hidden size-3 sm:block" /></Link>
