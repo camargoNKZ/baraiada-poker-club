@@ -1,6 +1,6 @@
 'use client';
 
-import { Banknote, CircleDollarSign, Clock3, Download, FileClock, LoaderCircle, Pause, PencilLine, Play, ReceiptText, RotateCcw, Save, Skull, UserPlus, Users, X } from 'lucide-react';
+import { Banknote, CircleDollarSign, Clock3, Download, FileClock, Flag, LoaderCircle, Pause, PencilLine, Play, ReceiptText, RotateCcw, Save, Skull, Sparkles, Trophy, UserPlus, Users, X } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useTournamentState } from '@/hooks/use-tournament-state';
@@ -20,17 +20,17 @@ export function ControlDashboard() {
   const [launch, setLaunch] = useState<Launch | null>(null);
 
   useEffect(() => {
-    if (!state) return;
-    const t = state.tournament;
+    const t = state?.tournament;
+    if (!t) return;
     setForm({ name: t.name, type: t.type, entryValue: String(t.entryValue / 100), reentryValue: String(t.reentryValue / 100), addonValue: String(t.addonValue / 100), payoutPlaces: String(t.payoutPlaces), levelMinutes: String(t.levelMinutes), smallBlind: String(t.smallBlind), bigBlind: String(t.bigBlind), ante: String(t.ante) });
-  }, [state?.tournament.updatedAt]);
+  }, [state?.tournament?.updatedAt]);
 
   const activeTransactions = state?.transactions.filter((item) => !item.voidedAt) ?? [];
   const charged = activeTransactions.filter((item) => item.totalAmount > 0).reduce((sum, item) => sum + item.totalAmount, 0);
   const received = Math.abs(activeTransactions.filter((item) => item.kind === 'payment').reduce((sum, item) => sum + item.totalAmount, 0));
   const pending = charged - received;
-  const pool = useMemo(() => state ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
-  const awards = useMemo(() => payouts(pool, Number(form.payoutPlaces || state?.tournament.payoutPlaces || 1)), [pool, form.payoutPlaces, state]);
+  const pool = useMemo(() => state?.tournament ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
+  const awards = useMemo(() => payouts(pool, Number(form.payoutPlaces || state?.tournament?.payoutPlaces || 1)), [pool, form.payoutPlaces, state]);
   const activePlayers = state?.players.filter((item) => item.status === 'active').length ?? 0;
   const registeredPlayers = state?.players.filter((item) => item.status === 'registered').length ?? 0;
 
@@ -46,7 +46,7 @@ export function ControlDashboard() {
   }
 
   function openLaunch(playerId: number, playerName: string, kind: string) {
-    if (!state) return;
+    if (!state || !state.tournament) return;
     const defaultAmount = kind === 'entry' ? state.tournament.entryValue : kind === 'reentry' ? state.tournament.reentryValue : kind === 'addon' ? state.tournament.addonValue : Math.max(0, playerAccounting(playerId, state.transactions).balance);
     setLaunch({ playerId, playerName, kind, amount: String(defaultAmount / 100), quantity: '1', paymentMethod: kind === 'payment' ? 'Pix' : '', note: '' });
   }
@@ -55,6 +55,15 @@ export function ControlDashboard() {
     event.preventDefault();
     if (!launch) return;
     if (await mutate({ action: 'addTransaction', ...launch, amount: Math.round(Number(launch.amount) * 100), quantity: Number(launch.quantity) })) setLaunch(null);
+  }
+
+  async function finishTournament() {
+    if (!confirm('Encerrar este torneio agora? A colocação final de cada jogador será registrada no ranking anual e não poderá ser editada depois.')) return;
+    await mutate({ action: 'finishTournament' });
+  }
+
+  async function startNewTournament() {
+    await mutate({ action: 'newTournament' });
   }
 
   function exportAccounting() {
@@ -69,6 +78,18 @@ export function ControlDashboard() {
   }
 
   if (!state) return <div className="grid min-h-[60vh] place-items-center"><div className="text-center"><LoaderCircle className="mx-auto size-7 animate-spin text-[#d7b66a]" /><p className="mt-3 text-sm text-[#789087]">Preparando o torneio…</p>{error && <p className="mt-2 text-xs text-[#d88383]">{error}</p>}</div></div>;
+
+  if (!state.tournament) return (
+    <div className="mx-auto max-w-[1500px] px-5 py-7 lg:px-8">
+      <div className="panel grid place-items-center rounded-[22px] border border-[#d7b66a]/15 px-6 py-16 text-center">
+        <Trophy className="size-8 text-[#d7b66a]" />
+        <h1 className="mt-4 font-heading text-2xl font-bold uppercase tracking-[.04em] text-[#f0e1b5]">Nenhum torneio em andamento</h1>
+        <p className="mt-2 max-w-md text-sm text-[#789087]">O último torneio foi encerrado e a colocação final já está no ranking anual. Inicie um novo torneio para abrir cadastro de jogadores.</p>
+        {error && <p className="mt-3 text-sm text-[#d88383]">{error}</p>}
+        <Button onClick={startNewTournament} disabled={saving} className="mt-6 h-11 bg-[#d7b66a] px-6 font-bold text-[#14251e] hover:bg-[#e5c779]"><Sparkles className="size-4" /> Iniciar novo torneio</Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="baraiada-control mx-auto max-w-[1500px] px-5 py-7 lg:px-8">
@@ -111,7 +132,7 @@ export function ControlDashboard() {
             <label className={labelClass}>Tipo<select className={fieldClass} value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })}><option>Freezeout</option><option>Reentrada limitada</option><option>Reentrada ilimitada</option><option>Progressive Knockout</option><option>Satélite</option></select></label>
             {[['entryValue', 'Entrada padrão (R$)'], ['reentryValue', 'Reentrada padrão (R$)'], ['addonValue', 'Add-on padrão (R$)'], ['payoutPlaces', 'Lugares premiados'], ['levelMinutes', 'Duração do nível (min)'], ['smallBlind', 'Small blind'], ['bigBlind', 'Big blind'], ['ante', 'Ante']].map(([key, label]) => <label key={key} className={labelClass}>{label}<input min="0" type="number" className={fieldClass} value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>)}
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-white/8 pt-5"><Button type="button" onClick={() => mutate({ action: 'timer', command: 'toggle' })} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8">{state.tournament.timerStartedAt ? <Pause className="size-4" /> : <Play className="size-4" />} {state.tournament.timerStartedAt ? 'Pausar nível' : 'Iniciar nível'}</Button><Button type="button" onClick={() => mutate({ action: 'timer', command: 'reset' })} variant="ghost" className="h-10 px-4 text-[#8da79e] hover:bg-white/5 hover:text-white"><RotateCcw className="size-4" /> Reiniciar</Button><span className="ml-auto flex items-center gap-2 text-xs text-[#718a81]"><Clock3 className="size-4 text-[#d7b66a]" /> {state.tournament.levelMinutes} min</span></div>
+          <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-white/8 pt-5"><Button type="button" onClick={() => mutate({ action: 'timer', command: 'toggle' })} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8">{state.tournament.timerStartedAt ? <Pause className="size-4" /> : <Play className="size-4" />} {state.tournament.timerStartedAt ? 'Pausar nível' : 'Iniciar nível'}</Button><Button type="button" onClick={() => mutate({ action: 'timer', command: 'reset' })} variant="ghost" className="h-10 px-4 text-[#8da79e] hover:bg-white/5 hover:text-white"><RotateCcw className="size-4" /> Reiniciar</Button><Button type="button" onClick={finishTournament} disabled={saving} variant="ghost" className="h-10 px-4 text-[#d88383] hover:bg-[#d88383]/10 hover:text-[#eea0a0]"><Flag className="size-4" /> Encerrar torneio</Button><span className="ml-auto flex items-center gap-2 text-xs text-[#718a81]"><Clock3 className="size-4 text-[#d7b66a]" /> {state.tournament.levelMinutes} min</span></div>
         </form>
 
         <article className="felt-card rounded-[22px] border border-white/9 p-5 sm:p-6"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">Premiação projetada</p><h2 className="mt-2 text-xl font-semibold text-white">{money(pool)} em prêmios</h2><p className="mt-1 text-xs text-[#83a397]">Calculada pelos valores efetivamente lançados.</p><div className="mt-5 space-y-2">{awards.map((value, index) => <div key={index} className="flex items-center gap-3 rounded-xl border border-white/7 bg-black/10 px-4 py-3"><span className={`grid size-7 place-items-center rounded-full text-xs font-bold ${index < 3 ? 'bg-[#d7b66a] text-[#14251e]' : 'bg-white/7 text-[#9ab0a8]'}`}>{index + 1}º</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/20"><div className="h-full rounded-full bg-[#d7b66a]/75" style={{ width: `${pool ? (value / pool) * 100 : 0}%` }} /></div><strong className="w-24 text-right font-mono text-sm text-white">{money(value)}</strong></div>)}</div></article>

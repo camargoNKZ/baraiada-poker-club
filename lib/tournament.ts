@@ -2,7 +2,14 @@ export type Tournament = {
   id: number; name: string; type: string; entryValue: number; reentryValue: number;
   addonValue: number; payoutPlaces: number; levelMinutes: number; smallBlind: number;
   bigBlind: number; ante: number; timerStartedAt: number | null; timerPausedSeconds: number; updatedAt: number;
+  status: 'active' | 'finished'; finishedAt: number | null;
 };
+
+export const RANKING_POINTS = [10, 7, 5, 3, 1];
+
+export function pointsForPosition(position: number) {
+  return RANKING_POINTS[position - 1] ?? 0;
+}
 
 export type Player = {
   id: number; name: string; nickname: string; phone: string; email: string; document: string; notes: string; status: string; entries: number; reentries: number;
@@ -14,13 +21,14 @@ export type FinancialTransaction = {
   totalAmount: number; paymentMethod: string; note: string; createdAt: number; voidedAt: number | null;
 };
 
-export type TournamentState = { tournament: Tournament; players: Player[]; transactions: FinancialTransaction[]; serverNow: number };
+export type TournamentState = { tournament: Tournament | null; players: Player[]; transactions: FinancialTransaction[]; serverNow: number; needsNewTournament: boolean };
 
 export const defaultTournament: Tournament = {
   id: 1, name: 'Main Event — Clube Paulista', type: 'Reentrada ilimitada',
   entryValue: 50000, reentryValue: 50000, addonValue: 30000, payoutPlaces: 5,
   levelMinutes: 20, smallBlind: 1000, bigBlind: 2000, ante: 2000,
   timerStartedAt: null, timerPausedSeconds: 20 * 60, updatedAt: Date.now(),
+  status: 'active', finishedAt: null,
 };
 
 export function prizePool(tournament: Tournament, players: Player[], transactions?: FinancialTransaction[]) {

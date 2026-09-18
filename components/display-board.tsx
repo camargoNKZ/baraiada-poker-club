@@ -12,8 +12,9 @@ export function DisplayBoard() {
   const { state, error } = useTournamentState(5000);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
-  const pool = useMemo(() => state ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
+  const pool = useMemo(() => state?.tournament ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
   if (!state) return <main className="grid min-h-screen place-items-center bg-[#0d0c0a]"><div className="text-center"><LoaderCircle className="mx-auto size-8 animate-spin text-[#c9a45a]" /><p className="mt-3 text-sm text-[#a48e6a]">Abrindo painel…</p>{error && <p className="mt-2 text-xs text-[#c36a56]">{error}</p>}</div></main>;
+  if (!state.tournament) return <main className="grid min-h-screen place-items-center bg-[#0d0c0a] px-5 text-center text-[#f0e1b5]"><div><Trophy className="mx-auto size-8 text-[#c9a45a]" /><h1 className="mt-4 font-heading text-2xl font-bold uppercase tracking-[.04em]">Nenhum torneio em andamento</h1><p className="mt-2 text-sm text-[#a48e6a]">Confira o <Link href="/ranking" className="underline">ranking anual</Link> ou aguarde o início do próximo torneio.</p></div></main>;
   const active = state.players.filter((item) => item.status === 'active').sort((a, b) => b.chips - a.chips);
   const awards = payouts(pool, state.tournament.payoutPlaces);
   const remaining = remainingSeconds(state.tournament, now);

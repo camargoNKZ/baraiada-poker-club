@@ -1,24 +1,14 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { getSupabase } from '@/lib/supabase-server';
+import { getSupabaseServerClient } from '@/lib/supabase-auth-server';
 
-export const ADMIN_COOKIE = 'baraiada_admin';
+export type AdminUser = { id: string; email: string };
 
-function expectedToken() {
-  const password = process.env.ADMIN_PASSWORD;
-  const secret = process.env.SESSION_SECRET;
-  if (!password || !secret) return '';
-  return createHash('sha256').update(`${password}:${secret}`).digest('hex');
+export async function getAdminUser(): Promise<AdminUser | null> {
+  const supabase = await getSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const db = getSupabase();
+  const { data } = await db.from('admin_profiles').select('email').eq('user_id', user.id).maybeSingle();
+  if (!data) return null;
+  return { id: user.id, email: data.email as string };
 }
-
-export function isAdminPassword(value: string) {
-  const expected = process.env.ADMIN_PASSWORD ?? '';
-  if (!value || !expected || value.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(value), Buffer.from(expected));
-}
-
-export function isAdminSession(value?: string) {
-  const expected = expectedToken();
-  if (!value || !expected || value.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(value), Buffer.from(expected));
-}
-
-export function createAdminSession() { return expectedToken(); }
