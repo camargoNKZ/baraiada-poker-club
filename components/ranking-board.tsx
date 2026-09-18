@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Crown, Medal, Trophy } from 'lucide-react';
-import { money } from '@/lib/tournament';
 
 type RankingRow = { playerName: string; points: number; prize: number; tournaments: number; wins: number; podiums: number };
 type RankingResponse = { year: number; years: number[]; ranking: RankingRow[]; tournamentsCount: number };
@@ -35,7 +34,7 @@ export function RankingBoard() {
         {data && (
           <div className="panel overflow-hidden rounded-[22px] border border-[#c9a45a]/20">
             <table className="w-full text-left">
-              <thead className="text-[10px] uppercase tracking-[.13em] text-[#a48e6a]"><tr><th className="px-5 py-3">#</th><th className="py-3">Jogador</th><th className="py-3 text-right">Torneios</th><th className="py-3 text-right">Vitórias</th><th className="py-3 text-right">Pódios</th><th className="py-3 text-right">Pontos</th><th className="px-5 py-3 text-right">Prêmios</th></tr></thead>
+              <thead className="text-[10px] uppercase tracking-[.13em] text-[#a48e6a]"><tr><th className="px-5 py-3">#</th><th className="py-3">Jogador</th><th className="py-3 text-right">Torneios</th><th className="py-3 text-right">Vitórias</th><th className="py-3 text-right">Pódios</th><th className="px-5 py-3 text-right">Pontos</th></tr></thead>
               <tbody>
                 {data.ranking.map((row, index) => (
                   <tr key={row.playerName} className="border-t border-white/8 text-sm">
@@ -44,11 +43,10 @@ export function RankingBoard() {
                     <td className="py-3 text-right">{row.tournaments}</td>
                     <td className="py-3 text-right">{row.wins}</td>
                     <td className="py-3 text-right">{row.podiums}</td>
-                    <td className="py-3 text-right font-mono font-bold text-[#e3c578]">{row.points}</td>
-                    <td className="px-5 py-3 text-right font-mono">{money(row.prize)}</td>
+                    <td className="px-5 py-3 text-right font-mono font-bold text-[#e3c578]">{row.points}</td>
                   </tr>
                 ))}
-                {!data.ranking.length && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-[#a48e6a]"><Trophy className="mx-auto mb-2 size-6" />Nenhum torneio encerrado neste ano ainda.</td></tr>}
+                {!data.ranking.length && <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-[#a48e6a]"><Trophy className="mx-auto mb-2 size-6" />Nenhum torneio encerrado neste ano ainda.</td></tr>}
               </tbody>
             </table>
           </div>
