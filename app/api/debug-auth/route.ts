@@ -20,11 +20,13 @@ export async function GET() {
   }
 
   let adminProfile: unknown = null;
+  let adminProfileError: unknown = null;
   if (userResult && typeof userResult === 'object' && 'id' in userResult) {
     const db = getSupabase();
-    const { data } = await db.from('admin_profiles').select('user_id, email').eq('user_id', (userResult as { id: string }).id).maybeSingle();
+    const { data, error } = await db.from('admin_profiles').select('user_id, email').eq('user_id', (userResult as { id: string }).id).maybeSingle();
     adminProfile = data;
+    adminProfileError = error;
   }
 
-  return Response.json({ allCookies, userResult, userError, adminProfile });
+  return Response.json({ allCookies, userResult, userError, adminProfile, adminProfileError, hasServiceKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY), hasSupabaseUrl: Boolean(process.env.SUPABASE_URL) });
 }
