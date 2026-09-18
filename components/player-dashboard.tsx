@@ -11,7 +11,9 @@ import type { PlayerProfile } from '@/lib/player-auth';
 type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number };
 type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string };
 type PlayerRequest = { id: number; kind: string; quantity: number; status: string; note: string; requestedAt: number; resolvedAt: number | null };
-type JogadorState = { profile: PlayerProfile; roleLabel: string; tournament: Tournament | null; player: PlayerRow | null; requests: PlayerRequest[] };
+type Accounting = { charged: number; paid: number; balance: number };
+type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: number; createdAt: number };
+type JogadorState = { profile: PlayerProfile; roleLabel: string; tournament: Tournament | null; player: PlayerRow | null; requests: PlayerRequest[]; accounting: Accounting; extract: ExtractItem[]; pool: number };
 
 const kindLabel: Record<string, string> = { register: 'Inscrição', entry: 'Entrada', reentry: 'Reentrada', addon: 'Add-on' };
 const statusLabel: Record<string, { label: string; className: string }> = {
@@ -81,8 +83,10 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
         ) : (
           <>
             <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
-              <p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p>
-              <h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>
+                <div className="rounded-xl border border-white/8 bg-black/10 px-4 py-2 text-right"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Pot até o momento</p><p className="text-lg font-bold text-[#e3c578]">{money(state.pool)}</p></div>
+              </div>
 
               {!state.player ? (
                 pendingKinds.has('register') ? (
@@ -113,6 +117,21 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                 </>
               )}
             </section>
+
+            {state.player && (
+              <section className="panel mb-4 rounded-[22px] border border-white/8">
+                <div className="border-b border-white/8 p-5"><h2 className="text-sm font-semibold text-white">Meus gastos</h2></div>
+                <div className="grid grid-cols-3 gap-3 p-5">
+                  <div><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Cobrado</p><p className="mt-1 font-mono text-sm font-semibold text-white">{money(state.accounting.charged)}</p></div>
+                  <div><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Pago</p><p className="mt-1 font-mono text-sm font-semibold text-[#65d19e]">{money(state.accounting.paid)}</p></div>
+                  <div><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Saldo a pagar</p><p className={`mt-1 font-mono text-sm font-semibold ${state.accounting.balance > 0 ? 'text-[#e3c578]' : 'text-[#65d19e]'}`}>{money(state.accounting.balance)}</p></div>
+                </div>
+                <div className="divide-y divide-white/6 border-t border-white/8">
+                  {state.extract.map((item) => <div key={item.id} className="flex items-center justify-between px-5 py-2.5 text-xs"><div><p className="text-[#dce5e1]">{item.kind}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</p><p className="text-[#698179]">{new Date(item.createdAt).toLocaleString('pt-BR')}</p></div><strong className={`font-mono ${item.totalAmount < 0 ? 'text-[#65d19e]' : 'text-white'}`}>{money(item.totalAmount)}</strong></div>)}
+                  {!state.extract.length && <div className="px-5 py-6 text-center text-xs text-[#60786f]">Nenhum lançamento ainda.</div>}
+                </div>
+              </section>
+            )}
 
             <section className="panel rounded-[22px] border border-white/8">
               <div className="border-b border-white/8 p-5"><h2 className="text-sm font-semibold text-white">Minhas solicitações</h2></div>
