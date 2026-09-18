@@ -82,7 +82,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
           <>
             <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
               <p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p>
-              <h1 className="mt-1 text-xl font-semibold">{state.tournament.name}</h1>
+              <h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1>
 
               {!state.player ? (
                 pendingKinds.has('register') ? (
