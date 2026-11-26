@@ -35,7 +35,7 @@ export const defaultTournament: Tournament = {
   timerStartedAt: null, timerPausedSeconds: 20 * 60, updatedAt: Date.now(),
   status: 'active', finishedAt: null, currentLevel: 0,
   lastEliminationName: '', lastEliminationAt: null, lastEliminationMessage: '',
-  blindLevels: generateStructure(defaultGeneratorOptions), alertAudioPath: '',
+  blindLevels: generateStructure(defaultGeneratorOptions), alertAudioPath: 'blind-alert-4bb4b357-141c-4962-8eff-15ad9a484c4a.ogg',
 };
 
 export function prizePool(tournament: Tournament, players: Player[], transactions?: FinancialTransaction[]) {
