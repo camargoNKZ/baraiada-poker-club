@@ -1,4 +1,5 @@
 import { notifyTournamentChange } from '@/lib/realtime';
+import { brl, KIND_LABEL, logAction, playerName } from '@/lib/audit';
 import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-auth';
 import { clampIndex, clockAt, levelsOf, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
@@ -96,14 +97,21 @@ export async function POST(request: Request) {
     const needed = ACTION_PERMISSION[action];
     if (!needed) return Response.json({ error: 'Ação desconhecida.' }, { status: 400 });
     if (!staff.can[needed]) return Response.json({ error: FORBIDDEN_MESSAGE }, { status: 403 });
-    const respond = async () => { await notifyTournamentChange(); return Response.json({ ...(await loadState(true)), permissions: staff.can }); };
+    // Cada ação bem-sucedida define `audit` para entrar no histórico.
+    let audit: { tournamentId: number | null; action: string; summary: string; details?: Record<string, unknown> } | null = null;
+    const respond = async () => {
+      if (audit) await logAction(db, { actor: staff, ...audit });
+      await notifyTournamentChange();
+      return Response.json({ ...(await loadState(true)), permissions: staff.can });
+    };
 
     if (action === 'newTournament') {
       const existing = await db.from('tournaments').select('id').eq('status', 'active').maybeSingle();
       if (existing.error) throw existing.error;
       if (existing.data) return Response.json({ error: 'Já existe um torneio em andamento. Encerre-o antes de iniciar um novo.' }, { status: 400 });
-      const created = await db.from('tournaments').insert({ ...(await lastTournamentTemplate(db)), status: 'active' });
+      const created = await db.from('tournaments').insert({ ...(await lastTournamentTemplate(db)), status: 'active' }).select('id, name').single();
       if (created.error) throw created.error;
+      audit = { tournamentId: created.data.id, action: 'newTournament', summary: `Iniciou o torneio “${created.data.name}”` };
       return respond();
     }
 
@@ -121,6 +129,7 @@ export async function POST(request: Request) {
         values.payout_places = percentages.length;
       }
       const result = await db.from('tournaments').update(values).eq('id', current.id); if (result.error) throw result.error;
+      audit = { tournamentId: current.id, action: 'updateTournament', summary: `Alterou a configuração do torneio: entrada ${brl(values.entry_value)}, reentrada ${brl(values.reentry_value)}, add-on ${brl(values.addon_value)}, ${values.payout_places} lugares premiados${values.payout_percentages.length ? ` (${values.payout_percentages.join(' / ')}%)` : ' (divisão padrão)'}`, details: { before: { entryValue: current.entryValue, reentryValue: current.reentryValue, addonValue: current.addonValue, payoutPlaces: current.payoutPlaces, payoutPercentages: current.payoutPercentages }, after: values } };
     } else if (action === 'saveBlindStructure') {
       const levels = sanitizeStructure(body.levels);
       if (!levels.some((item) => item.kind === 'level')) return Response.json({ error: 'A estrutura precisa ter pelo menos um nível de jogo.' }, { status: 400 });
@@ -132,26 +141,38 @@ export async function POST(request: Request) {
       const first = levels.find((item) => item.kind === 'level')!;
       const result = await db.from('tournaments').update({ blind_levels: levels, current_level: index, timer_paused_seconds: remaining, timer_started_at: snap.running ? now : null, level_minutes: first.durationMinutes, small_blind: first.smallBlind, big_blind: first.bigBlind, ante: first.ante, updated_at: now }).eq('id', current.id);
       if (result.error) throw result.error;
+      audit = { tournamentId: current.id, action: 'saveBlindStructure', summary: `Salvou a estrutura de blinds: ${levels.filter((l) => l.kind === 'level').length} níveis e ${levels.filter((l) => l.kind === 'break').length} intervalos, começando em ${first.smallBlind}/${first.bigBlind}`, details: { levels } };
     } else if (action === 'addPlayer') {
       const name = String(body.name ?? '').trim();
       if (!name) return Response.json({ error: 'Informe o nome do jogador.' }, { status: 400 });
       const result = await db.from('players').insert({ tournament_id: current.id, name, nickname: String(body.nickname ?? '').trim(), phone: String(body.phone ?? '').trim(), email: String(body.email ?? '').trim(), document: String(body.document ?? '').trim(), notes: String(body.notes ?? '').trim(), status: 'registered', entries: 0, reentries: 0, addons: 0, chips: Math.max(0, Number(body.chips) || 0), table_no: String(body.tableNo ?? ''), eliminated_at: null, created_at: Date.now() }); if (result.error) throw result.error;
+      audit = { tournamentId: current.id, action: 'addPlayer', summary: `Cadastrou o jogador ${name}` };
     } else if (action === 'addTransaction') {
       const playerId = Number(body.playerId), kind = String(body.kind), quantity = Math.max(1, Math.floor(Number(body.quantity) || 1)), amount = Math.max(0, Math.round(Number(body.amount) || 0));
       const total = kind === 'payment' ? -amount : amount * quantity;
       // Validação, gravação do lançamento e atualização do contador acontecem numa única transação no banco.
       const { error } = await db.rpc('record_purchase', { p_tournament_id: current.id, p_player_id: playerId, p_kind: kind, p_quantity: quantity, p_unit_amount: amount, p_total_amount: total, p_payment_method: String(body.paymentMethod ?? ''), p_note: String(body.note ?? '') });
       throwIfError(error);
+      const who = await playerName(db, playerId);
+      const method = String(body.paymentMethod ?? '');
+      audit = { tournamentId: current.id, action: 'addTransaction', summary: kind === 'payment' ? `Registrou pagamento de ${brl(amount)} de ${who}${method ? ` (${method})` : ''}` : `Lançou ${KIND_LABEL[kind] ?? kind}${quantity > 1 ? ` ×${quantity}` : ''} (${brl(total)}) para ${who}`, details: { playerId, kind, quantity, amount, total, paymentMethod: method, note: String(body.note ?? '') } };
     } else if (action === 'voidTransaction') {
-      const { error } = await db.rpc('void_transaction', { p_tournament_id: current.id, p_transaction_id: Number(body.transactionId) });
+      const transactionId = Number(body.transactionId);
+      const { error } = await db.rpc('void_transaction', { p_tournament_id: current.id, p_transaction_id: transactionId });
       throwIfError(error);
+      const tx = await db.from('financial_transactions').select('player_id, kind, quantity, total_amount').eq('id', transactionId).maybeSingle();
+      const who = tx.data ? await playerName(db, Number(tx.data.player_id)) : 'jogador';
+      audit = { tournamentId: current.id, action: 'voidTransaction', summary: `Estornou ${KIND_LABEL[tx.data?.kind] ?? 'lançamento'}${tx.data && tx.data.quantity > 1 ? ` ×${tx.data.quantity}` : ''} (${brl(Math.abs(Number(tx.data?.total_amount ?? 0)))}) de ${who}`, details: { transactionId, ...(tx.data ?? {}) } };
     } else if (action === 'eliminate') {
       const active = Boolean(body.active);
       const values: Row = { status: active ? 'active' : 'eliminated', eliminated_at: active ? null : Date.now() };
       if (active) { values.self_eliminated = false; values.farewell_message = ''; }
       const result = await db.from('players').update(values).eq('id', Number(body.playerId)).eq('tournament_id', current.id); if (result.error) throw result.error;
+      const who = await playerName(db, Number(body.playerId));
+      audit = { tournamentId: current.id, action: active ? 'reactivatePlayer' : 'eliminatePlayer', summary: active ? `Reativou ${who}` : `Eliminou ${who}`, details: { playerId: Number(body.playerId) } };
     } else if (action === 'updatePlayer') {
       const result = await db.from('players').update({ chips: Math.max(0, Number(body.chips) || 0), table_no: String(body.tableNo ?? '') }).eq('id', Number(body.playerId)).eq('tournament_id', current.id); if (result.error) throw result.error;
+      audit = { tournamentId: current.id, action: 'updatePlayer', summary: `Mudou a mesa de ${await playerName(db, Number(body.playerId))} para ${String(body.tableNo ?? '') || 'sem mesa'}` };
     } else if (action === 'timer') {
       // toggle: liga/pausa · next/prev: muda de nível · restart: recomeça o nível atual.
       const command = String(body.command);
@@ -163,6 +184,10 @@ export async function POST(request: Request) {
       else if (command === 'restart') remaining = snap.levels[index].durationMinutes * 60;
       else return Response.json({ error: 'Comando de relógio inválido.' }, { status: 400 });
       const result = await db.from('tournaments').update({ current_level: index, timer_paused_seconds: remaining, timer_started_at: running ? now : null, updated_at: now }).eq('id', current.id); if (result.error) throw result.error;
+      const target = snap.levels[index];
+      const levelText = target.kind === 'break' ? 'intervalo' : `nível ${snap.levels.slice(0, index + 1).filter((l) => l.kind === 'level').length} (${target.smallBlind}/${target.bigBlind})`;
+      const commandText: Record<string, string> = { toggle: running ? 'Iniciou o relógio' : 'Pausou o relógio', next: 'Avançou para o', prev: 'Voltou para o', restart: 'Recomeçou o' };
+      audit = { tournamentId: current.id, action: `timer.${command}`, summary: command === 'toggle' ? `${commandText.toggle} no ${levelText}` : `${commandText[command]} ${levelText}` };
     } else if (action === 'finishTournament') {
       const playersResult = await db.from('players').select('*').eq('tournament_id', current.id); if (playersResult.error) throw playersResult.error;
       const players = playersResult.data ?? [];
@@ -189,6 +214,7 @@ export async function POST(request: Request) {
       // Fecha o torneio e grava os resultados juntos; um segundo clique é recusado pelo banco.
       const { error } = await db.rpc('finish_tournament', { p_tournament_id: current.id, p_results: resultsRows });
       throwIfError(error);
+      audit = { tournamentId: current.id, action: 'finishTournament', summary: `Encerrou o torneio “${current.name}”: campeão ${resultsRows[0]?.player_name ?? '—'}, prêmio total ${brl(pool)}`, details: { results: resultsRows, pool } };
     }
 
     return respond();

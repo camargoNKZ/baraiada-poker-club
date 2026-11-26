@@ -1,3 +1,5 @@
+import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
+const REQ_LABEL: Record<string, string> = { register: 'inscrição', ...Object.fromEntries(Object.entries(KIND_LABEL).map(([k, v]) => [k, v.toLowerCase()])) };
 import { notifyTournamentChange } from '@/lib/realtime';
 import { FORBIDDEN_MESSAGE, getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
     if (action === 'reject') {
       const updated = await db.from('player_requests').update({ status: 'rejected', resolved_at: Date.now(), resolved_by: admin.id }).eq('id', requestId);
       if (updated.error) throw updated.error;
+      await logAction(db, { actor: admin, tournamentId: req.tournament_id, action: 'rejectRequest', summary: `Recusou a solicitação de ${REQ_LABEL[req.kind] ?? req.kind} de ${await profileName(db, req.profile_id)}`, details: { requestId } });
       await notifyTournamentChange(); return Response.json({ ok: true, requests: await loadRequests(db) });
     }
 
@@ -115,6 +118,7 @@ export async function POST(request: Request) {
       throwIfError(error);
     }
 
+    await logAction(db, { actor: admin, tournamentId: req.tournament_id, action: 'approveRequest', summary: `Aprovou a solicitação de ${REQ_LABEL[req.kind] ?? req.kind}${req.quantity > 1 ? ` ×${req.quantity}` : ''} de ${await profileName(db, req.profile_id)}`, details: { requestId } });
     await notifyTournamentChange(); return Response.json({ ok: true, requests: await loadRequests(db) });
   } catch (error) {
     return errorResponse(error, 'Erro ao processar solicitação.');
