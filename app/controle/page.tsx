@@ -8,5 +8,5 @@ export const dynamic = 'force-dynamic';
 export default async function ControlPage() {
   const admin = await getAdminUser();
   if (!admin) redirect('/login');
-  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} /><ControlDashboard /></main>;
+  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={admin.can} /><ControlDashboard /></main>;
 }

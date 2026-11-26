@@ -1,5 +1,6 @@
 import { getPlayerProfile } from '@/lib/player-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { clockFromRow } from '@/lib/blinds';
 import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
 import { playerAccounting, prizePool } from '@/lib/tournament';
 
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 type Row = Record<string, any>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, currentLevel: row.current_level ?? 0 };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak };
 }
 
 function playerFromRow(row: Row) {
@@ -31,7 +32,7 @@ export async function GET() {
     if (!profile) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
 
     const db = getSupabase();
-    const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level').eq('status', 'active').maybeSingle();
+    const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes').eq('status', 'active').maybeSingle();
     if (tournamentResult.error) throw tournamentResult.error;
     const tournamentRow = tournamentResult.data;
     const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, profile.id), supportRoleLabel(db, profile.id)]);

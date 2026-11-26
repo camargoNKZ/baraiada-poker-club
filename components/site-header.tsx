@@ -5,17 +5,21 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
+import type { Permissions } from '@/lib/admin-auth';
 
-const NAV_ITEMS = [
+type NavItem = { href: string; label: string; icon: typeof Settings2; external?: boolean; requires?: keyof Permissions };
+
+const NAV_ITEMS: NavItem[] = [
   { href: '/controle', label: 'Controle', icon: Settings2 },
-  { href: '/controle/solicitacoes', label: 'Solicitações', icon: Inbox },
-  { href: '/controle/admins', label: 'Equipe', icon: UserCog },
+  { href: '/controle/solicitacoes', label: 'Solicitações', icon: Inbox, requires: 'finance' as const },
+  { href: '/controle/admins', label: 'Equipe e cargos', icon: UserCog, requires: 'admin' as const },
   { href: '/controle/meu-jogo', label: 'Meu Jogo', icon: CircleDollarSign },
   { href: '/ranking', label: 'Ranking', icon: Trophy, external: true },
   { href: '/painel', label: 'Painel', icon: Tv, external: true },
 ];
 
-export function SiteHeader({ adminEmail }: { adminEmail?: string } = {}) {
+export function SiteHeader({ adminEmail, permissions }: { adminEmail?: string; permissions?: Permissions } = {}) {
+  const navItems = NAV_ITEMS.filter((item) => !item.requires || permissions?.[item.requires]);
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -35,7 +39,7 @@ export function SiteHeader({ adminEmail }: { adminEmail?: string } = {}) {
         </Link>
 
         <nav aria-label="Áreas do sistema" className="hidden items-center rounded-full border border-white/8 bg-white/[0.035] p-1 md:flex">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, external }) => (
+          {navItems.map(({ href, label, icon: Icon, external }) => (
             <Link key={href} href={href} target={external ? '_blank' : undefined} className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Icon className="size-3.5" /> {label} {external && <ExternalLink className="hidden size-3 sm:block" />}</Link>
           ))}
         </nav>
@@ -51,7 +55,7 @@ export function SiteHeader({ adminEmail }: { adminEmail?: string } = {}) {
       {menuOpen && (
         <div className="border-t border-[#c9a45a]/15 bg-[#0d0c0a] px-5 py-4 md:hidden">
           <nav aria-label="Áreas do sistema (mobile)" className="flex flex-col gap-1">
-            {NAV_ITEMS.map(({ href, label, icon: Icon, external }) => (
+            {navItems.map(({ href, label, icon: Icon, external }) => (
               <Link key={href} href={href} target={external ? '_blank' : undefined} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:bg-white/5 hover:text-[#f0e1b5]'}`}><Icon className="size-4" /> {label} {external && <ExternalLink className="ml-auto size-3.5" />}</Link>
             ))}
           </nav>

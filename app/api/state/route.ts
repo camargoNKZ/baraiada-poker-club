@@ -1,7 +1,8 @@
-import { getAdminUser } from '@/lib/admin-auth';
+import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-auth';
+import { clampIndex, clockAt, levelsOf, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
-import { defaultTournament, payouts, pointsForPosition, remainingSeconds } from '@/lib/tournament';
+import { defaultTournament, payouts, pointsForPosition } from '@/lib/tournament';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,11 +10,11 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at, currentLevel: row.current_level ?? 0, lastEliminationName: row.last_elimination_name ?? '', lastEliminationAt: row.last_elimination_at ?? null, lastEliminationMessage: row.last_elimination_message ?? '' };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, blindLevels: Array.isArray(row.blind_levels) ? row.blind_levels : [], alertAudioPath: row.alert_audio_path ?? '', updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at, currentLevel: row.current_level ?? 0, lastEliminationName: row.last_elimination_name ?? '', lastEliminationAt: row.last_elimination_at ?? null, lastEliminationMessage: row.last_elimination_message ?? '' };
 }
 
 function tournamentToRow(row: typeof defaultTournament) {
-  return { name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
+  return { blind_levels: row.blindLevels, name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
 }
 
 function playerFromRow(row: Row) {
@@ -24,8 +25,27 @@ function transactionFromRow(row: Row) {
   return { id: Number(row.id), playerId: Number(row.player_id), kind: row.kind, quantity: row.quantity, unitAmount: row.unit_amount, totalAmount: row.total_amount, paymentMethod: row.payment_method, note: row.note, createdAt: row.created_at, voidedAt: row.voided_at };
 }
 
-async function isAdmin() {
-  return Boolean(await getAdminUser());
+// O que cada ação exige: admin (configuração), floor (dealer) ou finance (financeiro).
+const ACTION_PERMISSION: Record<string, keyof Permissions> = {
+  newTournament: 'admin', updateTournament: 'admin', saveBlindStructure: 'admin', finishTournament: 'admin',
+  addPlayer: 'floor', eliminate: 'floor', updatePlayer: 'floor', timer: 'floor',
+  addTransaction: 'finance', voidTransaction: 'finance',
+};
+
+// Congela o relógio no instante atual: grava nível e tempo restante calculados.
+function clockSnapshot(current: ReturnType<typeof tournamentFromRow>, now: number) {
+  const clock = clockAt(current, now);
+  return { index: clock.index, remaining: clock.remaining, running: clock.running, levels: levelsOf(current) };
+}
+
+// Copia a configuração (valores e estrutura de blinds) do último torneio para o próximo.
+async function lastTournamentTemplate(db: Db) {
+  const last = await db.from('tournaments').select('*').order('id', { ascending: false }).limit(1).maybeSingle();
+  if (last.error) throw last.error;
+  if (!last.data) return tournamentToRow({ ...defaultTournament, updatedAt: Date.now() });
+  const row = last.data;
+  const levels = levelsOf(tournamentFromRow(row));
+  return { name: row.name, type: row.type, entry_value: row.entry_value, reentry_value: row.reentry_value, addon_value: row.addon_value, payout_places: row.payout_places, level_minutes: row.level_minutes, small_blind: row.small_blind, big_blind: row.big_blind, ante: row.ante, blind_levels: row.blind_levels ?? [], alert_audio_path: row.alert_audio_path ?? '', purchase_options: row.purchase_options, timer_started_at: null, timer_paused_seconds: levels[0].durationMinutes * 60, current_level: 0, updated_at: Date.now() };
 }
 
 async function loadActiveTournamentRow(db: Db) {
@@ -59,24 +79,31 @@ async function loadState(privateData = false) {
 }
 
 export async function GET() {
-  try { return Response.json(await loadState(await isAdmin())); }
-  catch (error) { return Response.json({ error: error instanceof Error ? error.message : 'Erro ao carregar dados.' }, { status: 500 }); }
+  try {
+    const staff = await getAdminUser();
+    return Response.json({ ...(await loadState(Boolean(staff))), permissions: staff?.can ?? null });
+  } catch (error) { return errorResponse(error, 'Erro ao carregar dados.'); }
 }
 
 export async function POST(request: Request) {
   try {
-    if (!(await isAdmin())) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
+    const staff = await getAdminUser();
+    if (!staff) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
     const db = getSupabase();
     const body = await request.json() as Record<string, unknown>;
     const action = String(body.action ?? '');
+    const needed = ACTION_PERMISSION[action];
+    if (!needed) return Response.json({ error: 'Ação desconhecida.' }, { status: 400 });
+    if (!staff.can[needed]) return Response.json({ error: FORBIDDEN_MESSAGE }, { status: 403 });
+    const respond = async () => Response.json({ ...(await loadState(true)), permissions: staff.can });
 
     if (action === 'newTournament') {
       const existing = await db.from('tournaments').select('id').eq('status', 'active').maybeSingle();
       if (existing.error) throw existing.error;
       if (existing.data) return Response.json({ error: 'Já existe um torneio em andamento. Encerre-o antes de iniciar um novo.' }, { status: 400 });
-      const created = await db.from('tournaments').insert({ ...tournamentToRow({ ...defaultTournament, updatedAt: Date.now() }), status: 'active' });
+      const created = await db.from('tournaments').insert({ ...(await lastTournamentTemplate(db)), status: 'active' });
       if (created.error) throw created.error;
-      return Response.json(await loadState(true));
+      return respond();
     }
 
     const activeRow = await loadActiveTournamentRow(db);
@@ -84,9 +111,19 @@ export async function POST(request: Request) {
     const current = tournamentFromRow(activeRow);
 
     if (action === 'updateTournament') {
-      const levelMinutes = Math.max(1, Number(body.levelMinutes) || current.levelMinutes);
-      const values = { name: String(body.name || current.name), type: String(body.type || current.type), entry_value: Math.max(0, Math.round(Number(body.entryValue) || 0)), reentry_value: Math.max(0, Math.round(Number(body.reentryValue) || 0)), addon_value: Math.max(0, Math.round(Number(body.addonValue) || 0)), payout_places: Math.max(1, Math.min(20, Number(body.payoutPlaces) || 1)), level_minutes: levelMinutes, small_blind: Math.max(0, Number(body.smallBlind) || 0), big_blind: Math.max(0, Number(body.bigBlind) || 0), ante: Math.max(0, Number(body.ante) || 0), timer_paused_seconds: current.timerStartedAt ? current.timerPausedSeconds : levelMinutes * 60, updated_at: Date.now() };
+      const values = { name: String(body.name || current.name), type: String(body.type || current.type), entry_value: Math.max(0, Math.round(Number(body.entryValue) || 0)), reentry_value: Math.max(0, Math.round(Number(body.reentryValue) || 0)), addon_value: Math.max(0, Math.round(Number(body.addonValue) || 0)), payout_places: Math.max(1, Math.min(20, Number(body.payoutPlaces) || 1)), updated_at: Date.now() };
       const result = await db.from('tournaments').update(values).eq('id', current.id); if (result.error) throw result.error;
+    } else if (action === 'saveBlindStructure') {
+      const levels = sanitizeStructure(body.levels);
+      if (!levels.some((item) => item.kind === 'level')) return Response.json({ error: 'A estrutura precisa ter pelo menos um nível de jogo.' }, { status: 400 });
+      const now = Date.now();
+      const snap = clockSnapshot(current, now);
+      const index = clampIndex(snap.index, levels);
+      // Com o relógio parado, o nível atual recomeça com a nova duração; rodando, mantém o tempo que falta.
+      const remaining = snap.running && index === snap.index ? Math.min(snap.remaining, levels[index].durationMinutes * 60) : levels[index].durationMinutes * 60;
+      const first = levels.find((item) => item.kind === 'level')!;
+      const result = await db.from('tournaments').update({ blind_levels: levels, current_level: index, timer_paused_seconds: remaining, timer_started_at: snap.running ? now : null, level_minutes: first.durationMinutes, small_blind: first.smallBlind, big_blind: first.bigBlind, ante: first.ante, updated_at: now }).eq('id', current.id);
+      if (result.error) throw result.error;
     } else if (action === 'addPlayer') {
       const name = String(body.name ?? '').trim();
       if (!name) return Response.json({ error: 'Informe o nome do jogador.' }, { status: 400 });
@@ -108,11 +145,16 @@ export async function POST(request: Request) {
     } else if (action === 'updatePlayer') {
       const result = await db.from('players').update({ chips: Math.max(0, Number(body.chips) || 0), table_no: String(body.tableNo ?? '') }).eq('id', Number(body.playerId)).eq('tournament_id', current.id); if (result.error) throw result.error;
     } else if (action === 'timer') {
-      const command = String(body.command); let values: Row;
-      if (command === 'reset') values = { timer_started_at: null, timer_paused_seconds: current.levelMinutes * 60, updated_at: Date.now(), current_level: current.currentLevel + 1 };
-      else if (current.timerStartedAt) values = { timer_started_at: null, timer_paused_seconds: remainingSeconds(current), updated_at: Date.now() };
-      else values = { timer_started_at: Date.now(), updated_at: Date.now() };
-      const result = await db.from('tournaments').update(values).eq('id', current.id); if (result.error) throw result.error;
+      // toggle: liga/pausa · next/prev: muda de nível · restart: recomeça o nível atual.
+      const command = String(body.command);
+      const now = Date.now();
+      const snap = clockSnapshot(current, now);
+      let index = snap.index, remaining = snap.remaining, running = snap.running;
+      if (command === 'toggle') running = !running;
+      else if (command === 'next' || command === 'prev') { index = clampIndex(index + (command === 'next' ? 1 : -1), snap.levels); remaining = snap.levels[index].durationMinutes * 60; }
+      else if (command === 'restart') remaining = snap.levels[index].durationMinutes * 60;
+      else return Response.json({ error: 'Comando de relógio inválido.' }, { status: 400 });
+      const result = await db.from('tournaments').update({ current_level: index, timer_paused_seconds: remaining, timer_started_at: running ? now : null, updated_at: now }).eq('id', current.id); if (result.error) throw result.error;
     } else if (action === 'finishTournament') {
       const playersResult = await db.from('players').select('*').eq('tournament_id', current.id); if (playersResult.error) throw playersResult.error;
       const players = playersResult.data ?? [];
@@ -137,9 +179,8 @@ export async function POST(request: Request) {
       // Fecha o torneio e grava os resultados juntos; um segundo clique é recusado pelo banco.
       const { error } = await db.rpc('finish_tournament', { p_tournament_id: current.id, p_results: resultsRows });
       throwIfError(error);
-      return Response.json(await loadState(true));
-    } else return Response.json({ error: 'Ação desconhecida.' }, { status: 400 });
+    }
 
-    return Response.json(await loadState(true));
+    return respond();
   } catch (error) { return errorResponse(error, 'Erro ao salvar dados.'); }
 }

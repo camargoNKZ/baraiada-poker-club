@@ -8,5 +8,6 @@ export const dynamic = 'force-dynamic';
 export default async function SolicitacoesPage() {
   const admin = await getAdminUser();
   if (!admin) redirect('/login');
-  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} /><RequestsPanel /></main>;
+  if (!admin.can.finance) redirect('/controle');
+  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={admin.can} /><RequestsPanel /></main>;
 }

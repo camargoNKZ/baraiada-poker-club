@@ -1,5 +1,6 @@
 import { getPlayerProfile } from '@/lib/player-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { clockFromRow } from '@/lib/blinds';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,11 +13,11 @@ export async function POST(request: Request) {
     const message = String(body.message ?? '').trim().slice(0, 240);
 
     const db = getSupabase();
-    const tournamentResult = await db.from('tournaments').select('id, current_level').eq('status', 'active').maybeSingle();
+    const tournamentResult = await db.from('tournaments').select('*').eq('status', 'active').maybeSingle();
     if (tournamentResult.error) throw tournamentResult.error;
     const tournament = tournamentResult.data;
     if (!tournament) return Response.json({ error: 'Não há torneio ativo no momento.' }, { status: 400 });
-    if (Number(tournament.current_level ?? 0) < 1) return Response.json({ error: 'A eliminação só pode ser reportada após o primeiro intervalo do torneio.' }, { status: 400 });
+    if (!clockFromRow(tournament).pastFirstBreak) return Response.json({ error: 'A eliminação só pode ser reportada após o primeiro intervalo do torneio.' }, { status: 400 });
 
     const playerResult = await db.from('players').select('id, status, entries').eq('tournament_id', tournament.id).eq('profile_id', profile.id).maybeSingle();
     if (playerResult.error) throw playerResult.error;

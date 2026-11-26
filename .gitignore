@@ -39,3 +39,5 @@ next-env.d.ts
 /.npm-cache/
 /.vercel-runtime/
 *.tsbuildinfo
+AGENTS.md
+CLAUDE.md
