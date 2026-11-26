@@ -10,7 +10,7 @@ export default async function MeuJogoPage() {
   if (!admin) redirect('/login');
   return (
     <main className="display-bg min-h-screen text-[#f0e1b5]">
-      <SiteHeader adminEmail={admin.email} />
+      <SiteHeader adminEmail={admin.email} permissions={admin.can} />
       <div className="px-5 py-8">
         <AdminSelfPlay />
       </div>

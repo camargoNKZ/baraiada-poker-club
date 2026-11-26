@@ -1,4 +1,4 @@
-import { getAdminUser } from '@/lib/admin-auth';
+import { FORBIDDEN_MESSAGE, getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { isSupportProfile, supportDiscountFor } from '@/lib/dealer-discount';
@@ -45,6 +45,7 @@ export async function GET() {
   try {
     const admin = await getAdminUser();
     if (!admin) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
+    if (!admin.can.finance) return Response.json({ error: FORBIDDEN_MESSAGE }, { status: 403 });
     const db = getSupabase();
     return Response.json({ requests: await loadRequests(db) });
   } catch (error) {
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
   try {
     const admin = await getAdminUser();
     if (!admin) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
+    if (!admin.can.finance) return Response.json({ error: FORBIDDEN_MESSAGE }, { status: 403 });
 
     const body = await request.json() as Record<string, unknown>;
     const requestId = Number(body.requestId);

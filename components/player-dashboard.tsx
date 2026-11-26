@@ -8,7 +8,7 @@ import { getSupabaseBrowser } from '@/lib/supabase-browser';
 import { money } from '@/lib/tournament';
 import type { PlayerProfile } from '@/lib/player-auth';
 
-type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; currentLevel: number };
+type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean };
 type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
 type PlayerRequest = { id: number; kind: string; quantity: number; status: string; note: string; requestedAt: number; resolvedAt: number | null };
 type Accounting = { charged: number; paid: number; balance: number };
@@ -126,7 +126,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                           <Button disabled={sending || pendingKinds.has('addon')} onClick={() => sendRequest('addon')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> {pendingKinds.has('addon') ? 'Add-on solicitado' : `Solicitar add-on (${money(state.tournament.addonValue)})`}</Button>
                         )}
                         {state.player.status === 'active' && (
-                          <Button disabled={sending || state.tournament.currentLevel < 1} onClick={() => setEliminating(true)} variant="outline" className="h-10 border-[#d88383]/30 bg-[#d88383]/8 px-4 text-[#e5a0a0] hover:bg-[#d88383]/15"><Flag className="size-4" /> {state.tournament.currentLevel < 1 ? 'Eliminação (após o 1º intervalo)' : 'Reportar eliminação'}</Button>
+                          <Button disabled={sending || !state.tournament.eliminationOpen} onClick={() => setEliminating(true)} variant="outline" className="h-10 border-[#d88383]/30 bg-[#d88383]/8 px-4 text-[#e5a0a0] hover:bg-[#d88383]/15"><Flag className="size-4" /> {!state.tournament.eliminationOpen ? 'Eliminação (após o 1º intervalo)' : 'Reportar eliminação'}</Button>
                         )}
                       </>
                     )}

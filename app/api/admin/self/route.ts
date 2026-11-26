@@ -1,5 +1,6 @@
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { clockFromRow } from '@/lib/blinds';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
 import { playerAccounting, prizePool } from '@/lib/tournament';
@@ -10,7 +11,7 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, currentLevel: row.current_level ?? 0 };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak };
 }
 
 function playerFromRow(row: Row) {
@@ -34,7 +35,7 @@ async function ensurePlayerProfile(db: Db, admin: { id: string; name: string; ni
 }
 
 async function buildSelfState(db: Db, admin: { id: string; name: string; nickname: string; phone: string; email: string }) {
-  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level').eq('status', 'active').maybeSingle();
+  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes').eq('status', 'active').maybeSingle();
   if (tournamentResult.error) throw tournamentResult.error;
   const tournamentRow = tournamentResult.data;
   const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, admin.id), supportRoleLabel(db, admin.id)]);
@@ -128,11 +129,11 @@ export async function POST(request: Request) {
 
     if (action === 'eliminate') {
       const message = String(body.message ?? '').trim().slice(0, 240);
-      const tournamentResult = await db.from('tournaments').select('id, current_level').eq('status', 'active').maybeSingle();
+      const tournamentResult = await db.from('tournaments').select('*').eq('status', 'active').maybeSingle();
       if (tournamentResult.error) throw tournamentResult.error;
       const tournament = tournamentResult.data;
       if (!tournament) return Response.json({ error: 'Não há torneio ativo no momento.' }, { status: 400 });
-      if (Number(tournament.current_level ?? 0) < 1) return Response.json({ error: 'A eliminação só pode ser reportada após o primeiro intervalo do torneio.' }, { status: 400 });
+      if (!clockFromRow(tournament).pastFirstBreak) return Response.json({ error: 'A eliminação só pode ser reportada após o primeiro intervalo do torneio.' }, { status: 400 });
 
       const playerResult = await db.from('players').select('id, status, entries').eq('tournament_id', tournament.id).eq('profile_id', admin.id).maybeSingle();
       if (playerResult.error) throw playerResult.error;

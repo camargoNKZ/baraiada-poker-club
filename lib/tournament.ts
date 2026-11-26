@@ -1,7 +1,11 @@
+import { type BlindLevel, defaultGeneratorOptions, generateStructure } from '@/lib/blinds';
+import type { Permissions } from '@/lib/admin-auth';
+
 export type Tournament = {
   id: number; name: string; type: string; entryValue: number; reentryValue: number;
   addonValue: number; payoutPlaces: number; levelMinutes: number; smallBlind: number;
   bigBlind: number; ante: number; timerStartedAt: number | null; timerPausedSeconds: number; updatedAt: number;
+  blindLevels: BlindLevel[]; alertAudioPath: string;
   status: 'active' | 'finished'; finishedAt: number | null; currentLevel: number;
   lastEliminationName: string; lastEliminationAt: number | null; lastEliminationMessage: string;
 };
@@ -22,7 +26,7 @@ export type FinancialTransaction = {
   totalAmount: number; paymentMethod: string; note: string; createdAt: number; voidedAt: number | null;
 };
 
-export type TournamentState = { tournament: Tournament | null; players: Player[]; transactions: FinancialTransaction[]; serverNow: number; needsNewTournament: boolean };
+export type TournamentState = { tournament: Tournament | null; players: Player[]; transactions: FinancialTransaction[]; serverNow: number; needsNewTournament: boolean; permissions: Permissions | null };
 
 export const defaultTournament: Tournament = {
   id: 1, name: 'Main Event — Clube Paulista', type: 'Reentrada ilimitada',
@@ -31,6 +35,7 @@ export const defaultTournament: Tournament = {
   timerStartedAt: null, timerPausedSeconds: 20 * 60, updatedAt: Date.now(),
   status: 'active', finishedAt: null, currentLevel: 0,
   lastEliminationName: '', lastEliminationAt: null, lastEliminationMessage: '',
+  blindLevels: generateStructure(defaultGeneratorOptions), alertAudioPath: '',
 };
 
 export function prizePool(tournament: Tournament, players: Player[], transactions?: FinancialTransaction[]) {
