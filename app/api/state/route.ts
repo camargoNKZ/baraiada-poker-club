@@ -1,5 +1,6 @@
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { defaultTournament, payouts, pointsForPosition, remainingSeconds } from '@/lib/tournament';
 
 export const dynamic = 'force-dynamic';
@@ -92,23 +93,13 @@ export async function POST(request: Request) {
       const result = await db.from('players').insert({ tournament_id: current.id, name, nickname: String(body.nickname ?? '').trim(), phone: String(body.phone ?? '').trim(), email: String(body.email ?? '').trim(), document: String(body.document ?? '').trim(), notes: String(body.notes ?? '').trim(), status: 'registered', entries: 0, reentries: 0, addons: 0, chips: Math.max(0, Number(body.chips) || 0), table_no: String(body.tableNo ?? ''), eliminated_at: null, created_at: Date.now() }); if (result.error) throw result.error;
     } else if (action === 'addTransaction') {
       const playerId = Number(body.playerId), kind = String(body.kind), quantity = Math.max(1, Math.floor(Number(body.quantity) || 1)), amount = Math.max(0, Math.round(Number(body.amount) || 0));
-      const playerResult = await db.from('players').select('*').eq('id', playerId).eq('tournament_id', current.id).maybeSingle(); if (playerResult.error) throw playerResult.error;
-      const player = playerResult.data;
-      if (!player || !['entry', 'reentry', 'addon', 'payment'].includes(kind)) return Response.json({ error: 'Lançamento inválido.' }, { status: 400 });
-      if (['reentry', 'addon'].includes(kind) && player.entries < 1) return Response.json({ error: 'Lance a primeira entrada antes de reentradas ou add-ons.' }, { status: 400 });
-      if (kind === 'addon' && player.addons >= 1) return Response.json({ error: 'Este jogador já lançou o add-on deste torneio.' }, { status: 400 });
       const total = kind === 'payment' ? -amount : amount * quantity;
-      const inserted = await db.from('financial_transactions').insert({ tournament_id: current.id, player_id: playerId, kind, quantity: kind === 'payment' ? 1 : quantity, unit_amount: amount, total_amount: total, payment_method: String(body.paymentMethod ?? ''), note: String(body.note ?? ''), created_at: Date.now(), voided_at: null }); if (inserted.error) throw inserted.error;
-      const fieldMap: Record<string, string> = { entry: 'entries', reentry: 'reentries', addon: 'addons' };
-      if (fieldMap[kind]) { const field = fieldMap[kind]; const updated = await db.from('players').update({ [field]: Number(player[field]) + quantity, ...(kind === 'entry' && player.status === 'registered' ? { status: 'active' } : {}) }).eq('id', playerId); if (updated.error) throw updated.error; }
+      // Validação, gravação do lançamento e atualização do contador acontecem numa única transação no banco.
+      const { error } = await db.rpc('record_purchase', { p_tournament_id: current.id, p_player_id: playerId, p_kind: kind, p_quantity: quantity, p_unit_amount: amount, p_total_amount: total, p_payment_method: String(body.paymentMethod ?? ''), p_note: String(body.note ?? '') });
+      throwIfError(error);
     } else if (action === 'voidTransaction') {
-      const transactionId = Number(body.transactionId);
-      const transactionResult = await db.from('financial_transactions').select('*').eq('id', transactionId).eq('tournament_id', current.id).maybeSingle(); if (transactionResult.error) throw transactionResult.error;
-      const transaction = transactionResult.data;
-      if (!transaction || transaction.voided_at) return Response.json({ error: 'Lançamento não encontrado.' }, { status: 400 });
-      const voided = await db.from('financial_transactions').update({ voided_at: Date.now() }).eq('id', transactionId); if (voided.error) throw voided.error;
-      const fieldMap: Record<string, string> = { entry: 'entries', reentry: 'reentries', addon: 'addons' };
-      if (fieldMap[transaction.kind]) { const playerResult = await db.from('players').select('*').eq('id', transaction.player_id).maybeSingle(); if (playerResult.error) throw playerResult.error; const player = playerResult.data; if (player) { const field = fieldMap[transaction.kind]; const nextCount = Math.max(0, Number(player[field]) - Number(transaction.quantity)); const updated = await db.from('players').update({ [field]: nextCount, ...(transaction.kind === 'entry' && nextCount === 0 ? { status: 'registered', eliminated_at: null } : {}) }).eq('id', transaction.player_id); if (updated.error) throw updated.error; } }
+      const { error } = await db.rpc('void_transaction', { p_tournament_id: current.id, p_transaction_id: Number(body.transactionId) });
+      throwIfError(error);
     } else if (action === 'eliminate') {
       const active = Boolean(body.active);
       const values: Row = { status: active ? 'active' : 'eliminated', eliminated_at: active ? null : Date.now() };
@@ -125,23 +116,30 @@ export async function POST(request: Request) {
     } else if (action === 'finishTournament') {
       const playersResult = await db.from('players').select('*').eq('tournament_id', current.id); if (playersResult.error) throw playersResult.error;
       const players = playersResult.data ?? [];
-      const ranked = [...players].sort((a, b) => {
-        const aActive = a.status === 'active', bActive = b.status === 'active';
-        if (aActive !== bActive) return aActive ? -1 : 1;
-        if (aActive && bActive) return (Number(b.chips) || 0) - (Number(a.chips) || 0);
-        return (Number(b.eliminated_at) || 0) - (Number(a.eliminated_at) || 0);
-      });
+      const standing = players.filter((p) => p.status === 'active');
+      // A ordem de quem ainda está vivo vem confirmada pelo admin (1º, 2º, ...).
+      // Sem ela, só dá para encerrar se sobrou no máximo um jogador.
+      const order = Array.isArray(body.order) ? body.order.map(Number) : [];
+      if (standing.length > 1) {
+        const standingIds = new Set(standing.map((p) => Number(p.id)));
+        const valid = order.length === standing.length && new Set(order).size === order.length && order.every((id) => standingIds.has(id));
+        if (!valid) return Response.json({ error: 'Confirme a classificação final de todos os jogadores que ainda estão no torneio.' }, { status: 400 });
+      }
+      const orderIndex = new Map(order.map((id, index) => [id, index]));
+      const eliminated = players.filter((p) => p.status !== 'active').sort((a, b) => (Number(b.eliminated_at) || 0) - (Number(a.eliminated_at) || 0));
+      const ranked = [...standing.sort((a, b) => (orderIndex.get(Number(a.id)) ?? 0) - (orderIndex.get(Number(b.id)) ?? 0)), ...eliminated];
       const pool = ranked.reduce((sum, p) => sum + p.entries * current.entryValue + p.reentries * current.reentryValue + p.addons * current.addonValue, 0);
       const prizeList = payouts(pool, current.payoutPlaces);
       const resultsRows = ranked.map((p, index) => {
         const eligible = p.status === 'active' || Boolean(p.self_eliminated);
-        return { tournament_id: current.id, player_id: p.id, player_name: p.name, position: index + 1, points: eligible ? pointsForPosition(index + 1) : 0, prize_amount: prizeList[index] ?? 0, created_at: Date.now() };
+        return { player_id: p.id, player_name: p.name, position: index + 1, points: eligible ? pointsForPosition(index + 1) : 0, prize_amount: prizeList[index] ?? 0 };
       });
-      if (resultsRows.length) { const insertedResults = await db.from('tournament_results').insert(resultsRows); if (insertedResults.error) throw insertedResults.error; }
-      const closed = await db.from('tournaments').update({ status: 'finished', finished_at: Date.now() }).eq('id', current.id); if (closed.error) throw closed.error;
+      // Fecha o torneio e grava os resultados juntos; um segundo clique é recusado pelo banco.
+      const { error } = await db.rpc('finish_tournament', { p_tournament_id: current.id, p_results: resultsRows });
+      throwIfError(error);
       return Response.json(await loadState(true));
     } else return Response.json({ error: 'Ação desconhecida.' }, { status: 400 });
 
     return Response.json(await loadState(true));
-  } catch (error) { return Response.json({ error: error instanceof Error ? error.message : 'Erro ao salvar dados.' }, { status: 500 }); }
+  } catch (error) { return errorResponse(error, 'Erro ao salvar dados.'); }
 }

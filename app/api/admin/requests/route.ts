@@ -1,5 +1,6 @@
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { isSupportProfile, supportDiscountFor } from '@/lib/dealer-discount';
 
 export const dynamic = 'force-dynamic';
@@ -99,8 +100,6 @@ export async function POST(request: Request) {
       if (playerResult.error) throw playerResult.error;
       const player = playerResult.data;
       if (!player) return Response.json({ error: 'Jogador da solicitação não encontrado.' }, { status: 400 });
-      if (req.kind === 'addon' && Number(player.addons) >= 1) return Response.json({ error: 'Este jogador já lançou o add-on deste torneio. Recuse a solicitação.' }, { status: 400 });
-
       const amountMap: Record<string, number> = { entry: tournament.entry_value, reentry: tournament.reentry_value, addon: tournament.addon_value };
       const amount = amountMap[req.kind];
       const isSupport = await isSupportProfile(db, player.profile_id);
@@ -108,26 +107,13 @@ export async function POST(request: Request) {
       const total = Math.max(0, amount * req.quantity - discount);
       const note = discount > 0 ? [req.note, 'Desconto de apoio/dealer aplicado'].filter(Boolean).join(' — ') : (req.note || '');
 
-      const txInserted = await db.from('financial_transactions').insert({
-        tournament_id: tournament.id, player_id: player.id, kind: req.kind, quantity: req.quantity, unit_amount: amount,
-        total_amount: total, payment_method: '', note, created_at: Date.now(), voided_at: null,
-      });
-      if (txInserted.error) throw txInserted.error;
-
-      const fieldMap: Record<string, string> = { entry: 'entries', reentry: 'reentries', addon: 'addons' };
-      const field = fieldMap[req.kind];
-      const playerUpdated = await db.from('players').update({
-        [field]: Number(player[field]) + req.quantity,
-        ...(req.kind === 'entry' && player.status === 'registered' ? { status: 'active' } : {}),
-      }).eq('id', player.id);
-      if (playerUpdated.error) throw playerUpdated.error;
-
-      const updated = await db.from('player_requests').update({ status: 'approved', resolved_at: Date.now(), resolved_by: admin.id }).eq('id', requestId);
-      if (updated.error) throw updated.error;
+      // Aprova a solicitação e lança o valor juntos: dois cliques em "Aprovar" não geram lançamento em dobro.
+      const { error } = await db.rpc('record_purchase', { p_tournament_id: tournament.id, p_player_id: player.id, p_kind: req.kind, p_quantity: req.quantity, p_unit_amount: amount, p_total_amount: total, p_note: note, p_request_id: requestId, p_resolved_by: admin.id });
+      throwIfError(error);
     }
 
     return Response.json({ ok: true, requests: await loadRequests(db) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Erro ao processar solicitação.' }, { status: 500 });
+    return errorResponse(error, 'Erro ao processar solicitação.');
   }
 }

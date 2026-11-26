@@ -1,5 +1,6 @@
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
 import { playerAccounting, prizePool } from '@/lib/tournament';
 
@@ -172,13 +173,6 @@ export async function POST(request: Request) {
         player = inserted.data;
       }
 
-      if ((kind === 'reentry' || kind === 'addon') && Number(player.entries) < 1) {
-        return Response.json({ error: 'Lance a primeira entrada antes de reentradas ou add-ons.' }, { status: 400 });
-      }
-      if (kind === 'addon' && Number(player.addons) >= 1) {
-        return Response.json({ error: 'Você já lançou o add-on deste torneio.' }, { status: 400 });
-      }
-
       const amountMap: Record<string, number> = { entry: tournament.entry_value, reentry: tournament.reentry_value, addon: tournament.addon_value };
       const amount = amountMap[kind];
       const isSupport = await isSupportProfile(db, admin.id);
@@ -186,25 +180,15 @@ export async function POST(request: Request) {
       const total = Math.max(0, amount * quantity - discount);
       const note = discount > 0 ? 'Desconto de apoio/dealer aplicado' : '';
 
-      const txInserted = await db.from('financial_transactions').insert({
-        tournament_id: tournament.id, player_id: player.id, kind, quantity, unit_amount: amount,
-        total_amount: total, payment_method: '', note, created_at: Date.now(), voided_at: null,
-      });
-      if (txInserted.error) throw txInserted.error;
-
-      const fieldMap: Record<string, string> = { entry: 'entries', reentry: 'reentries', addon: 'addons' };
-      const field = fieldMap[kind];
-      const playerUpdated = await db.from('players').update({
-        [field]: Number(player[field]) + quantity,
-        ...(kind === 'entry' && player.status === 'registered' ? { status: 'active' } : {}),
-      }).eq('id', player.id);
-      if (playerUpdated.error) throw playerUpdated.error;
+      // Validação, lançamento e contador numa única transação no banco.
+      const { error } = await db.rpc('record_purchase', { p_tournament_id: tournament.id, p_player_id: player.id, p_kind: kind, p_quantity: quantity, p_unit_amount: amount, p_total_amount: total, p_note: note });
+      throwIfError(error);
 
       return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
     }
 
     return Response.json({ error: 'Ação desconhecida.' }, { status: 400 });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Erro ao salvar dados.' }, { status: 500 });
+    return errorResponse(error, 'Erro ao salvar dados.');
   }
 }
