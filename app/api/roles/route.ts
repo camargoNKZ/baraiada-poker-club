@@ -1,3 +1,4 @@
+import { notifyTournamentChange } from '@/lib/realtime';
 import { FORBIDDEN_MESSAGE, getAdminUser } from '@/lib/admin-auth';
 import { activeTournament, loadMembers } from '@/lib/roles';
 import { recomputeSupportTransactions } from '@/lib/dealer-discount';
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Ação inválida.' }, { status: 400 });
     }
 
+    await notifyTournamentChange();
     return Response.json(await loadMembers(db));
   } catch (error) { return errorResponse(error, 'Erro ao salvar cargo.'); }
 }

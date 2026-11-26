@@ -48,4 +48,13 @@ button { cursor: pointer; }
 .baraiada-control [class~="bg-[#183d31]"] { background-color: #4a2119; }
 .baraiada-control [class~="text-[#b5c9c1]"] { color: #e3c983; }
 .baraiada-control [class~="text-[#e7ece9]"], .baraiada-control [class~="text-[#dce5e1]"] { color: #f0e1b5; }
+/* Painel da sala durante o intervalo: verde esmeralda com detalhes dourados. */
+.display-bg, .display-bg .felt-card, .display-bg .panel, .display-bg [class*="bg-[linear-gradient(145deg,#2c1712,#17100c)]"] { transition: background 1.2s ease, border-color 1.2s ease, box-shadow 1.2s ease; }
+.display-bg.break-mode { background: radial-gradient(circle at 15% 0%, rgb(32 110 82 / 28%), transparent 42rem), radial-gradient(circle at 88% 28%, rgb(201 164 90 / 9%), transparent 34rem), #06140f; }
+.break-mode .felt-card { background: radial-gradient(circle at 75% 45%, rgb(214 186 120 / 12%), transparent 40%), linear-gradient(135deg, #0f4a37 0%, #0a3326 55%, #061c15 100%); border-color: rgb(214 186 120 / 35%); box-shadow: inset 0 1px 0 rgb(240 225 181 / 10%), 0 24px 70px rgb(3 25 18 / 45%); }
+.break-mode .panel { background: linear-gradient(145deg, rgb(10 40 30 / 96%), rgb(6 24 18 / 98%)); }
+.break-mode [class*="bg-[linear-gradient(145deg,#2c1712,#17100c)]"] { background: linear-gradient(145deg, #0d3a2b, #06190f); }
+.break-mode [class*="border-[#c9a45a]"] { border-color: rgb(214 186 120 / 30%); }
+.break-mode [class~="even:bg-[#c9a45a]/[.035]"]:nth-child(even) { background-color: rgb(214 186 120 / 5%); }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }

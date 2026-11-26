@@ -24,6 +24,23 @@ function playAlert(configuredPath: string) {
   beep();
 }
 
+// Som do intervalo: carrilhão suave de três notas descendentes (diferente do alerta de nível).
+function breakChime() {
+  try {
+    const context = new AudioContext();
+    [[784, 0], [659.25, 0.45], [523.25, 0.9]].forEach(([frequency, offset]) => {
+      const oscillator = context.createOscillator(); const gain = context.createGain();
+      oscillator.type = 'sine'; oscillator.frequency.value = frequency;
+      oscillator.connect(gain); gain.connect(context.destination);
+      const startAt = context.currentTime + offset;
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.3, startAt + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 1.4);
+      oscillator.start(startAt); oscillator.stop(startAt + 1.45);
+    });
+  } catch { /* navegador sem áudio */ }
+}
+
 function beep() {
   try {
     const context = new AudioContext();
@@ -46,9 +63,14 @@ export function DisplayBoard() {
   const clock = state?.tournament ? clockAt(state.tournament, now + serverOffset) : null;
 
   // Alerta sonoro quando o nível muda (navegadores só liberam som depois de um clique na tela).
+  // Entrar no intervalo toca o carrilhão; o alerta oficial toca quando o jogo começa ou volta.
   useEffect(() => {
     if (!clock) return;
-    if (lastIndex.current !== null && lastIndex.current !== clock.index && soundOn) playAlert(state?.tournament?.alertAudioPath ?? '');
+    const changed = lastIndex.current !== null && lastIndex.current !== clock.index;
+    if (changed && soundOn) {
+      if (clock.level.kind === 'break') breakChime();
+      else playAlert(state?.tournament?.alertAudioPath ?? '');
+    }
     lastIndex.current = clock.index;
   }, [clock?.index]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -62,7 +84,7 @@ export function DisplayBoard() {
   const upcoming = levels.slice(current.index + 1, current.index + 7);
   const upcomingNumbers = upcoming.reduce<number[]>((acc, level) => [...acc, (acc.at(-1) ?? current.levelNumber) + (level.kind === 'level' ? 1 : 0)], []);
   return (
-    <main className="display-bg min-h-screen p-5 text-[#f0e1b5] lg:p-8">
+    <main className={`display-bg min-h-screen p-5 text-[#f0e1b5] lg:p-8 ${isBreak ? 'break-mode' : ''}`}>
       <header className="mx-auto mb-5 flex max-w-[1700px] items-center justify-between gap-3 border-b border-[#c9a45a]/20 pb-5">
         <div className="flex items-center gap-3"><span className="size-14 overflow-hidden rounded-full border-2 border-[#c9a45a]/60 shadow-[0_0_22px_rgba(201,164,90,.12)]"><img src="/baraiada-logo.jpg" alt="Baraiada Poker Club" width="56" height="56" className="size-full object-cover" /></span><div><p className="font-heading text-xl font-bold uppercase tracking-[.08em]">Baraiada</p><p className="text-[10px] font-bold uppercase tracking-[.2em] text-[#c9a45a]">Poker Club · Since 2025</p></div></div>
         <div className="flex shrink-0 items-center gap-2">{!soundOn && <button onClick={() => { setSoundOn(true); playAlert(state?.tournament?.alertAudioPath ?? ''); }} className="flex items-center gap-2 rounded-full border border-[#c9a45a]/40 bg-[#c9a45a]/10 px-4 py-2 text-xs font-semibold text-[#f0e1b5] hover:bg-[#c9a45a]/20"><Volume2 className="size-4" /> Ativar som</button>}<Link href="/controle" className="hidden rounded-full border sm:inline-flex border-[#c9a45a]/25 px-4 py-2 text-xs font-semibold text-[#a48e6a] hover:bg-[#c9a45a]/8 hover:text-[#f0e1b5]">Voltar ao controle</Link></div>

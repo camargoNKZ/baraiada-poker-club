@@ -1,3 +1,4 @@
+import { notifyTournamentChange } from '@/lib/realtime';
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
 import { clockFromRow } from '@/lib/blinds';
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
       const tournamentUpdated = await db.from('tournaments').update({ last_elimination_name: admin.name, last_elimination_at: Date.now(), last_elimination_message: message }).eq('id', tournament.id);
       if (tournamentUpdated.error) throw tournamentUpdated.error;
 
-      return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
+      await notifyTournamentChange(); return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
     }
 
     if (action === 'launch') {
@@ -185,7 +186,7 @@ export async function POST(request: Request) {
       const { error } = await db.rpc('record_purchase', { p_tournament_id: tournament.id, p_player_id: player.id, p_kind: kind, p_quantity: quantity, p_unit_amount: amount, p_total_amount: total, p_note: note });
       throwIfError(error);
 
-      return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
+      await notifyTournamentChange(); return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
     }
 
     return Response.json({ error: 'Ação desconhecida.' }, { status: 400 });
