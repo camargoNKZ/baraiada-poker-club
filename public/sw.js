@@ -2,7 +2,7 @@
 // - Arquivos fixos do app (JS/CSS com hash, ícones, fontes): guardados no aparelho para abrir rápido.
 // - Páginas: sempre da rede; sem conexão, mostra /offline.html.
 // - Dados (/api) e áudios do Supabase: nunca guardados, para não mostrar valor velho.
-const VERSION = 'baraiada-v1';
+const VERSION = 'baraiada-v2';
 const STATIC_CACHE = `${VERSION}-static`;
 const PRECACHE = ['/offline.html', '/baraiada-logo.jpg', '/icons/icon-192.png', '/icons/icon-512.png'];
 
