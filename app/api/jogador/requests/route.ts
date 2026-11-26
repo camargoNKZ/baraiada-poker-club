@@ -1,3 +1,4 @@
+import { clockFromRow, REBUY_CLOSED_MESSAGE } from '@/lib/blinds';
 import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
 import { notifyTournamentChange } from '@/lib/realtime';
 import { getPlayerProfile } from '@/lib/player-auth';
@@ -19,10 +20,11 @@ export async function POST(request: Request) {
     if (!KINDS.includes(kind)) return Response.json({ error: 'Solicitação inválida.' }, { status: 400 });
 
     const db = getSupabase();
-    const tournamentResult = await db.from('tournaments').select('id').eq('status', 'active').maybeSingle();
+    const tournamentResult = await db.from('tournaments').select('*').eq('status', 'active').maybeSingle();
     if (tournamentResult.error) throw tournamentResult.error;
     const tournament = tournamentResult.data;
     if (!tournament) return Response.json({ error: 'Não há torneio ativo no momento.' }, { status: 400 });
+    if (kind === 'reentry' && !clockFromRow(tournament).rebuyOpen) return Response.json({ error: REBUY_CLOSED_MESSAGE }, { status: 400 });
 
     const playerResult = await db.from('players').select('id, entries, addons').eq('tournament_id', tournament.id).eq('profile_id', profile.id).maybeSingle();
     if (playerResult.error) throw playerResult.error;

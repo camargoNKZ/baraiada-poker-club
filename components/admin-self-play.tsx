@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { money } from '@/lib/tournament';
 
-type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean };
+type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean; rebuyOpen: boolean };
 type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
 type Accounting = { charged: number; paid: number; balance: number };
 type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: number; createdAt: number };
@@ -114,8 +114,8 @@ export function AdminSelfPlay() {
                 </>
               ) : (
                 <>
-                  <Button disabled={busy} onClick={() => launch('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada ({money(state.tournament.reentryValue)})</Button>
-                  <Button disabled={busy} onClick={() => launch('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
+                  <Button disabled={busy || !state.tournament.rebuyOpen} title={state.tournament.rebuyOpen ? undefined : 'Rebuy encerrado no fim do 1º intervalo'} onClick={() => launch('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> {state.tournament.rebuyOpen ? `Reentrada (${money(state.tournament.reentryValue)})` : 'Rebuy encerrado'}</Button>
+                  <Button disabled={busy || !state.tournament.rebuyOpen} title={state.tournament.rebuyOpen ? undefined : 'Rebuy encerrado no fim do 1º intervalo'} onClick={() => launch('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
                   {(state.player?.addons ?? 0) < 1 && (
                     <Button disabled={busy} onClick={() => launch('addon', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> Add-on ({money(state.tournament.addonValue)})</Button>
                   )}
