@@ -40,6 +40,16 @@ function playAlert(configuredPath: string) {
   beep();
 }
 
+// Áudio especial do primeiro intervalo, tocado logo depois do carrilhão.
+const FIRST_BREAK_AUDIO = 'first-break.ogg';
+const CHIME_MS = 2000;
+
+function playAsset(path: string) {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return;
+  new Audio(`${base}/storage/v1/object/public/tournament-assets/${encodeURIComponent(path)}`).play().catch(() => undefined);
+}
+
 // Som do intervalo: carrilhão suave de três notas descendentes (diferente do alerta de nível).
 function breakChime() {
   try {
@@ -84,7 +94,12 @@ export function DisplayBoard() {
     if (!clock) return;
     const changed = lastIndex.current !== null && lastIndex.current !== clock.index;
     if (changed && soundOn) {
-      if (clock.level.kind === 'break') breakChime();
+      if (clock.level.kind === 'break') {
+        breakChime();
+        // No primeiro intervalo do torneio, o áudio especial toca depois das 3 notas.
+        const firstBreak = levelsOf(state!.tournament!).findIndex((level) => level.kind === 'break');
+        if (clock.index === firstBreak) window.setTimeout(() => playAsset(FIRST_BREAK_AUDIO), CHIME_MS);
+      }
       else playAlert(state?.tournament?.alertAudioPath ?? '');
     }
     lastIndex.current = clock.index;
