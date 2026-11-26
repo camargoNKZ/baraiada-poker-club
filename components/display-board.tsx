@@ -9,8 +9,12 @@ import { money, payouts, prizePool } from '@/lib/tournament';
 
 const n = (value: number) => value.toLocaleString('pt-BR');
 
-// Toca o alerta de troca de nível: o áudio configurado no torneio ou um bipe.
-function playAlert(audioPath: string) {
+// Som oficial de troca de nível dos torneios (bucket tournament-assets).
+const DEFAULT_ALERT_AUDIO = 'blind-alert-4bb4b357-141c-4962-8eff-15ad9a484c4a.ogg';
+
+// Toca o alerta de troca de nível; se o áudio não carregar, toca um bipe.
+function playAlert(configuredPath: string) {
+  const audioPath = configuredPath || DEFAULT_ALERT_AUDIO;
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (audioPath && base) {
     const audio = new Audio(`${base}/storage/v1/object/public/tournament-assets/${encodeURIComponent(audioPath)}`);
@@ -61,7 +65,7 @@ export function DisplayBoard() {
     <main className="display-bg min-h-screen p-5 text-[#f0e1b5] lg:p-8">
       <header className="mx-auto mb-5 flex max-w-[1700px] items-center justify-between gap-3 border-b border-[#c9a45a]/20 pb-5">
         <div className="flex items-center gap-3"><span className="size-14 overflow-hidden rounded-full border-2 border-[#c9a45a]/60 shadow-[0_0_22px_rgba(201,164,90,.12)]"><img src="/baraiada-logo.jpg" alt="Baraiada Poker Club" width="56" height="56" className="size-full object-cover" /></span><div><p className="font-heading text-xl font-bold uppercase tracking-[.08em]">Baraiada</p><p className="text-[10px] font-bold uppercase tracking-[.2em] text-[#c9a45a]">Poker Club · Since 2025</p></div></div>
-        <div className="flex shrink-0 items-center gap-2">{!soundOn && <button onClick={() => { setSoundOn(true); beep(); }} className="flex items-center gap-2 rounded-full border border-[#c9a45a]/40 bg-[#c9a45a]/10 px-4 py-2 text-xs font-semibold text-[#f0e1b5] hover:bg-[#c9a45a]/20"><Volume2 className="size-4" /> Ativar som</button>}<Link href="/controle" className="hidden rounded-full border sm:inline-flex border-[#c9a45a]/25 px-4 py-2 text-xs font-semibold text-[#a48e6a] hover:bg-[#c9a45a]/8 hover:text-[#f0e1b5]">Voltar ao controle</Link></div>
+        <div className="flex shrink-0 items-center gap-2">{!soundOn && <button onClick={() => { setSoundOn(true); playAlert(state?.tournament?.alertAudioPath ?? ''); }} className="flex items-center gap-2 rounded-full border border-[#c9a45a]/40 bg-[#c9a45a]/10 px-4 py-2 text-xs font-semibold text-[#f0e1b5] hover:bg-[#c9a45a]/20"><Volume2 className="size-4" /> Ativar som</button>}<Link href="/controle" className="hidden rounded-full border sm:inline-flex border-[#c9a45a]/25 px-4 py-2 text-xs font-semibold text-[#a48e6a] hover:bg-[#c9a45a]/8 hover:text-[#f0e1b5]">Voltar ao controle</Link></div>
       </header>
       {state.tournament.lastEliminationName && (
         <div className="mx-auto mb-4 flex max-w-[1700px] items-center gap-3 rounded-2xl border border-[#c36a56]/25 bg-[#c36a56]/8 px-6 py-3"><Flag className="size-4 shrink-0 text-[#c36a56]" /><p className="text-sm text-[#f0e1b5]"><strong>{state.tournament.lastEliminationName}</strong> foi eliminado{state.tournament.lastEliminationMessage && <span className="text-[#c7ae7e]"> — "{state.tournament.lastEliminationMessage}"</span>}</p></div>

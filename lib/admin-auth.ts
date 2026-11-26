@@ -58,3 +58,12 @@ export async function getAdminUser(): Promise<StaffUser | null> {
 }
 
 export const FORBIDDEN_MESSAGE = 'Seu cargo não permite esta ação.';
+
+// Para onde mandar quem abriu o controle sem ter cargo: jogador logado vai para a área dele.
+export async function nonStaffRedirectPath() {
+  const supabase = await getSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return '/login';
+  const { data } = await getSupabase().from('player_profiles').select('user_id').eq('user_id', user.id).maybeSingle();
+  return data ? '/jogador' : '/login';
+}

@@ -2,7 +2,7 @@ import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-a
 import { clampIndex, clockAt, levelsOf, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
-import { defaultTournament, payouts, pointsForPosition } from '@/lib/tournament';
+import { defaultTournament, payouts, pointsForPosition, prizePool } from '@/lib/tournament';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ function tournamentFromRow(row: Row) {
 }
 
 function tournamentToRow(row: typeof defaultTournament) {
-  return { blind_levels: row.blindLevels, name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
+  return { blind_levels: row.blindLevels, alert_audio_path: row.alertAudioPath, name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
 }
 
 function playerFromRow(row: Row) {
@@ -170,7 +170,9 @@ export async function POST(request: Request) {
       const orderIndex = new Map(order.map((id, index) => [id, index]));
       const eliminated = players.filter((p) => p.status !== 'active').sort((a, b) => (Number(b.eliminated_at) || 0) - (Number(a.eliminated_at) || 0));
       const ranked = [...standing.sort((a, b) => (orderIndex.get(Number(a.id)) ?? 0) - (orderIndex.get(Number(b.id)) ?? 0)), ...eliminated];
-      const pool = ranked.reduce((sum, p) => sum + p.entries * current.entryValue + p.reentries * current.reentryValue + p.addons * current.addonValue, 0);
+      // Prêmio = o que foi efetivamente lançado (já com descontos e sem estornos), igual ao que a tela mostra.
+      const txResult = await db.from('financial_transactions').select('*').eq('tournament_id', current.id); if (txResult.error) throw txResult.error;
+      const pool = prizePool(current, [], (txResult.data ?? []).map(transactionFromRow));
       const prizeList = payouts(pool, current.payoutPlaces);
       const resultsRows = ranked.map((p, index) => {
         const eligible = p.status === 'active' || Boolean(p.self_eliminated);

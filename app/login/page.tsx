@@ -16,8 +16,8 @@ export default function LoginPage() {
     const supabase = getSupabaseBrowser();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setError('E-mail ou senha inválidos.'); setLoading(false); return; }
-    const me = await fetch('/api/me').then((r) => r.json()).catch(() => null) as { isAdmin?: boolean } | null;
-    router.push(me?.isAdmin ? '/controle' : '/jogador');
+    const me = await fetch('/api/me').then((r) => r.json()).catch(() => null) as { isStaff?: boolean } | null;
+    router.push(me?.isStaff ? '/controle' : '/jogador');
     router.refresh();
   }
 
