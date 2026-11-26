@@ -1,3 +1,4 @@
+import { clockFromRow, REBUY_CLOSED_MESSAGE } from '@/lib/blinds';
 import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
 const REQ_LABEL: Record<string, string> = { register: 'inscrição', ...Object.fromEntries(Object.entries(KIND_LABEL).map(([k, v]) => [k, v.toLowerCase()])) };
 import { notifyTournamentChange } from '@/lib/realtime';
@@ -106,6 +107,7 @@ export async function POST(request: Request) {
       if (playerResult.error) throw playerResult.error;
       const player = playerResult.data;
       if (!player) return Response.json({ error: 'Jogador da solicitação não encontrado.' }, { status: 400 });
+      if (req.kind === 'reentry' && !clockFromRow(tournament).rebuyOpen) return Response.json({ error: `${REBUY_CLOSED_MESSAGE} Recuse a solicitação.` }, { status: 400 });
       const amountMap: Record<string, number> = { entry: tournament.entry_value, reentry: tournament.reentry_value, addon: tournament.addon_value };
       const amount = amountMap[req.kind];
       const isSupport = await isSupportProfile(db, player.profile_id);

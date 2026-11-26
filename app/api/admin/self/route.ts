@@ -2,7 +2,7 @@ import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit
 import { notifyTournamentChange } from '@/lib/realtime';
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
-import { clockFromRow } from '@/lib/blinds';
+import { clockFromRow, REBUY_CLOSED_MESSAGE } from '@/lib/blinds';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
 import { playerAccounting, prizePool } from '@/lib/tournament';
@@ -13,7 +13,7 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak, rebuyOpen: clockFromRow(row).rebuyOpen };
 }
 
 function playerFromRow(row: Row) {
@@ -161,6 +161,7 @@ export async function POST(request: Request) {
       if (tournamentResult.error) throw tournamentResult.error;
       const tournament = tournamentResult.data;
       if (!tournament) return Response.json({ error: 'Não há torneio ativo no momento.' }, { status: 400 });
+      if (kind === 'reentry' && !clockFromRow(tournament).rebuyOpen) return Response.json({ error: REBUY_CLOSED_MESSAGE }, { status: 400 });
 
       let playerResult = await db.from('players').select('*').eq('tournament_id', tournament.id).eq('profile_id', admin.id).maybeSingle();
       if (playerResult.error) throw playerResult.error;

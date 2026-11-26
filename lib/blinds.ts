@@ -32,6 +32,7 @@ export type ClockState = {
   next: BlindLevel | null;      // próximo nível de jogo (pulando intervalos)
   secondsToBreak: number | null; // até o início do próximo intervalo
   pastFirstBreak: boolean;      // já chegou ao primeiro intervalo
+  rebuyOpen: boolean;           // reentrada liberada: até o fim do primeiro intervalo
   finished: boolean;            // acabou o último nível da estrutura
 };
 
@@ -85,7 +86,10 @@ export function clockAt(source: ClockSource, now = Date.now()): ClockState {
   const firstBreak = levels.findIndex((item) => item.kind === 'break');
   const pastFirstBreak = firstBreak === -1 ? index >= 1 : index >= firstBreak;
 
-  return { index, level, levelNumber, remaining: Math.ceil(remaining), running, next, secondsToBreak, pastFirstBreak, finished };
+  // Rebuy vale até o fim do primeiro intervalo (durante o intervalo ainda pode). Sem intervalo, sempre liberado.
+  const rebuyOpen = firstBreak === -1 || index <= firstBreak;
+
+  return { index, level, levelNumber, remaining: Math.ceil(remaining), running, next, secondsToBreak, pastFirstBreak, rebuyOpen, finished };
 }
 
 // --- Gerador de estrutura -------------------------------------------------
@@ -165,6 +169,8 @@ export function sanitizeStructure(input: unknown): BlindLevel[] {
     return [{ id: `nivel-${levelCount}`, kind, smallBlind: num(item.smallBlind), bigBlind: num(item.bigBlind), ante: num(item.ante), durationMinutes }];
   });
 }
+
+export const REBUY_CLOSED_MESSAGE = 'As reentradas (rebuy) se encerraram no fim do primeiro intervalo.';
 
 export function formatClock(total: number) {
   const seconds = Math.max(0, Math.floor(total));

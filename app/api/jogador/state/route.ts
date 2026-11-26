@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 type Row = Record<string, any>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak, rebuyOpen: clockFromRow(row).rebuyOpen };
 }
 
 function playerFromRow(row: Row) {
