@@ -1,3 +1,4 @@
+import { notifyTournamentChange } from '@/lib/realtime';
 import { getPlayerProfile } from '@/lib/player-auth';
 import { getSupabase } from '@/lib/supabase-server';
 
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     });
     if (inserted.error) throw inserted.error;
 
+    await notifyTournamentChange();
     return Response.json({ ok: true });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : 'Erro ao enviar solicitação.' }, { status: 500 });

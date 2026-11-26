@@ -1,5 +1,6 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { Check, Clock3, Inbox, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,8 @@ export function RequestsPanel() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Erro de conexão.'); }
   }, []);
 
-  useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 10000); return () => window.clearInterval(timer); }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
+  useLiveRefresh(refresh);
 
   async function resolve(id: number, action: 'approve' | 'reject') {
     setBusyId(id); setError('');

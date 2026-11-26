@@ -1,5 +1,6 @@
 'use client';
 
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { CircleDollarSign, Clock3, ExternalLink, Flag, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -39,7 +40,8 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Erro de conexão.'); }
   }, []);
 
-  useEffect(() => { void refresh(); const timer = window.setInterval(() => void refresh(), 10000); return () => window.clearInterval(timer); }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
+  useLiveRefresh(refresh);
 
   async function sendRequest(kind: string) {
     setSending(true); setError('');

@@ -1,3 +1,4 @@
+import { notifyTournamentChange } from '@/lib/realtime';
 import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-auth';
 import { clampIndex, clockAt, levelsOf, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
     const needed = ACTION_PERMISSION[action];
     if (!needed) return Response.json({ error: 'Ação desconhecida.' }, { status: 400 });
     if (!staff.can[needed]) return Response.json({ error: FORBIDDEN_MESSAGE }, { status: 403 });
-    const respond = async () => Response.json({ ...(await loadState(true)), permissions: staff.can });
+    const respond = async () => { await notifyTournamentChange(); return Response.json({ ...(await loadState(true)), permissions: staff.can }); };
 
     if (action === 'newTournament') {
       const existing = await db.from('tournaments').select('id').eq('status', 'active').maybeSingle();

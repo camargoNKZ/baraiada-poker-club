@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { TournamentState } from '@/lib/tournament';
+import { useLiveRefresh } from '@/hooks/use-live-refresh';
 
 export function useTournamentState(pollMs = 0) {
   const [state, setState] = useState<TournamentState | null>(null);
@@ -30,6 +31,8 @@ export function useTournamentState(pollMs = 0) {
     finally { setSaving(false); }
   }, []);
 
-  useEffect(() => { void refresh(); if (!pollMs) return; const timer = window.setInterval(() => void refresh(), pollMs); return () => window.clearInterval(timer); }, [pollMs, refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
+  // Atualiza na hora quando algo muda; a busca periódica fica só como reserva.
+  useLiveRefresh(refresh, Math.max(pollMs, 30000));
   return { state, error, saving, refresh, mutate, serverOffset };
 }

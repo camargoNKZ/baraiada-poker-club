@@ -1,3 +1,4 @@
+import { notifyTournamentChange } from '@/lib/realtime';
 import { FORBIDDEN_MESSAGE, getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     if (action === 'reject') {
       const updated = await db.from('player_requests').update({ status: 'rejected', resolved_at: Date.now(), resolved_by: admin.id }).eq('id', requestId);
       if (updated.error) throw updated.error;
-      return Response.json({ ok: true, requests: await loadRequests(db) });
+      await notifyTournamentChange(); return Response.json({ ok: true, requests: await loadRequests(db) });
     }
 
     const tournamentResult = await db.from('tournaments').select('*').eq('id', req.tournament_id).maybeSingle();
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
       throwIfError(error);
     }
 
-    return Response.json({ ok: true, requests: await loadRequests(db) });
+    await notifyTournamentChange(); return Response.json({ ok: true, requests: await loadRequests(db) });
   } catch (error) {
     return errorResponse(error, 'Erro ao processar solicitação.');
   }
