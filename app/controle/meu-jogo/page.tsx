@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getAdminUser } from '@/lib/admin-auth';
+import { getAdminUser, nonStaffRedirectPath } from '@/lib/admin-auth';
 import { SiteHeader } from '@/components/site-header';
 import { AdminSelfPlay } from '@/components/admin-self-play';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function MeuJogoPage() {
   const admin = await getAdminUser();
-  if (!admin) redirect('/login');
+  if (!admin) redirect(await nonStaffRedirectPath());
   return (
     <main className="display-bg min-h-screen text-[#f0e1b5]">
       <SiteHeader adminEmail={admin.email} permissions={admin.can} />
