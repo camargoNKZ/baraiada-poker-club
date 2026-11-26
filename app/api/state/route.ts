@@ -2,7 +2,7 @@ import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-a
 import { clampIndex, clockAt, levelsOf, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
-import { defaultTournament, payouts, pointsForPosition, prizePool } from '@/lib/tournament';
+import { defaultTournament, payouts, pointsForPosition, prizePool, validPercentages } from '@/lib/tournament';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,11 +10,11 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, blindLevels: Array.isArray(row.blind_levels) ? row.blind_levels : [], alertAudioPath: row.alert_audio_path ?? '', updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at, currentLevel: row.current_level ?? 0, lastEliminationName: row.last_elimination_name ?? '', lastEliminationAt: row.last_elimination_at ?? null, lastEliminationMessage: row.last_elimination_message ?? '' };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, blindLevels: Array.isArray(row.blind_levels) ? row.blind_levels : [], payoutPercentages: Array.isArray(row.payout_percentages) ? row.payout_percentages.map(Number) : [], alertAudioPath: row.alert_audio_path ?? '', updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at, currentLevel: row.current_level ?? 0, lastEliminationName: row.last_elimination_name ?? '', lastEliminationAt: row.last_elimination_at ?? null, lastEliminationMessage: row.last_elimination_message ?? '' };
 }
 
 function tournamentToRow(row: typeof defaultTournament) {
-  return { blind_levels: row.blindLevels, alert_audio_path: row.alertAudioPath, name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
+  return { blind_levels: row.blindLevels, alert_audio_path: row.alertAudioPath, payout_percentages: row.payoutPercentages, name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
 }
 
 function playerFromRow(row: Row) {
@@ -45,7 +45,7 @@ async function lastTournamentTemplate(db: Db) {
   if (!last.data) return tournamentToRow({ ...defaultTournament, updatedAt: Date.now() });
   const row = last.data;
   const levels = levelsOf(tournamentFromRow(row));
-  return { name: row.name, type: row.type, entry_value: row.entry_value, reentry_value: row.reentry_value, addon_value: row.addon_value, payout_places: row.payout_places, level_minutes: row.level_minutes, small_blind: row.small_blind, big_blind: row.big_blind, ante: row.ante, blind_levels: row.blind_levels ?? [], alert_audio_path: row.alert_audio_path ?? '', purchase_options: row.purchase_options, timer_started_at: null, timer_paused_seconds: levels[0].durationMinutes * 60, current_level: 0, updated_at: Date.now() };
+  return { name: row.name, type: row.type, entry_value: row.entry_value, reentry_value: row.reentry_value, addon_value: row.addon_value, payout_places: row.payout_places, payout_percentages: row.payout_percentages ?? [], level_minutes: row.level_minutes, small_blind: row.small_blind, big_blind: row.big_blind, ante: row.ante, blind_levels: row.blind_levels ?? [], alert_audio_path: row.alert_audio_path ?? '', purchase_options: row.purchase_options, timer_started_at: null, timer_paused_seconds: levels[0].durationMinutes * 60, current_level: 0, updated_at: Date.now() };
 }
 
 async function loadActiveTournamentRow(db: Db) {
@@ -111,7 +111,14 @@ export async function POST(request: Request) {
     const current = tournamentFromRow(activeRow);
 
     if (action === 'updateTournament') {
-      const values = { name: String(body.name || current.name), type: String(body.type || current.type), entry_value: Math.max(0, Math.round(Number(body.entryValue) || 0)), reentry_value: Math.max(0, Math.round(Number(body.reentryValue) || 0)), addon_value: Math.max(0, Math.round(Number(body.addonValue) || 0)), payout_places: Math.max(1, Math.min(20, Number(body.payoutPlaces) || 1)), updated_at: Date.now() };
+      const values = { name: String(body.name || current.name), type: String(body.type || current.type), entry_value: Math.max(0, Math.round(Number(body.entryValue) || 0)), reentry_value: Math.max(0, Math.round(Number(body.reentryValue) || 0)), addon_value: Math.max(0, Math.round(Number(body.addonValue) || 0)), payout_places: Math.max(1, Math.min(20, Number(body.payoutPlaces) || 1)), payout_percentages: [] as number[], updated_at: Date.now() };
+      // Percentuais por posição: precisam somar 100%. Lista vazia = divisão padrão.
+      if (Array.isArray(body.payoutPercentages) && body.payoutPercentages.length) {
+        const percentages = body.payoutPercentages.map((value) => Math.round(Number(value) * 100) / 100);
+        if (!validPercentages(percentages)) return Response.json({ error: 'Os percentuais da premiação precisam somar 100% (de 1 a 20 posições).' }, { status: 400 });
+        values.payout_percentages = percentages;
+        values.payout_places = percentages.length;
+      }
       const result = await db.from('tournaments').update(values).eq('id', current.id); if (result.error) throw result.error;
     } else if (action === 'saveBlindStructure') {
       const levels = sanitizeStructure(body.levels);
@@ -173,7 +180,7 @@ export async function POST(request: Request) {
       // Prêmio = o que foi efetivamente lançado (já com descontos e sem estornos), igual ao que a tela mostra.
       const txResult = await db.from('financial_transactions').select('*').eq('tournament_id', current.id); if (txResult.error) throw txResult.error;
       const pool = prizePool(current, [], (txResult.data ?? []).map(transactionFromRow));
-      const prizeList = payouts(pool, current.payoutPlaces);
+      const prizeList = payouts(pool, current);
       const resultsRows = ranked.map((p, index) => {
         const eligible = p.status === 'active' || Boolean(p.self_eliminated);
         return { player_id: p.id, player_name: p.name, position: index + 1, points: eligible ? pointsForPosition(index + 1) : 0, prize_amount: prizeList[index] ?? 0 };
