@@ -1,3 +1,4 @@
+import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
 import { notifyTournamentChange } from '@/lib/realtime';
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
@@ -147,6 +148,7 @@ export async function POST(request: Request) {
       const tournamentUpdated = await db.from('tournaments').update({ last_elimination_name: admin.name, last_elimination_at: Date.now(), last_elimination_message: message }).eq('id', tournament.id);
       if (tournamentUpdated.error) throw tournamentUpdated.error;
 
+      await logAction(db, { actor: admin, tournamentId: tournament.id, action: 'selfEliminate', summary: `Reportou a própria eliminação${message ? `: “${message}”` : ''}` });
       await notifyTournamentChange(); return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
     }
 
@@ -186,6 +188,7 @@ export async function POST(request: Request) {
       const { error } = await db.rpc('record_purchase', { p_tournament_id: tournament.id, p_player_id: player.id, p_kind: kind, p_quantity: quantity, p_unit_amount: amount, p_total_amount: total, p_note: note });
       throwIfError(error);
 
+      await logAction(db, { actor: admin, tournamentId: tournament.id, action: 'selfLaunch', summary: `Lançou para si ${KIND_LABEL[kind] ?? kind}${quantity > 1 ? ` ×${quantity}` : ''} (${brl(total)})`, details: { kind, quantity, total } });
       await notifyTournamentChange(); return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
     }
 

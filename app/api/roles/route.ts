@@ -1,3 +1,4 @@
+import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
 import { notifyTournamentChange } from '@/lib/realtime';
 import { FORBIDDEN_MESSAGE, getAdminUser } from '@/lib/admin-auth';
 import { activeTournament, loadMembers } from '@/lib/roles';
@@ -62,6 +63,11 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Ação inválida.' }, { status: 400 });
     }
 
+    const target = profile.name || 'pessoa';
+    const roleText: Record<string, string> = { dealer: 'Dealer', financeiro: 'Financeiro' };
+    await logAction(db, { actor: user, tournamentId: action === 'setTournamentRole' ? (await activeTournament(db))?.id ?? null : null, action,
+      summary: action === 'setAdmin' ? (body.admin ? `Tornou ${target} administrador` : `Removeu ${target} da administração`) : (roleText[String(body.role)] ? `Escalou ${target} como ${roleText[String(body.role)]} no torneio` : `Tirou o cargo de ${target} no torneio`),
+      details: { userId, admin: body.admin, role: body.role ?? null } });
     await notifyTournamentChange();
     return Response.json(await loadMembers(db));
   } catch (error) { return errorResponse(error, 'Erro ao salvar cargo.'); }

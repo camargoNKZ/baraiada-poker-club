@@ -1,3 +1,4 @@
+import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
 import { notifyTournamentChange } from '@/lib/realtime';
 import { getPlayerProfile } from '@/lib/player-auth';
 import { getSupabase } from '@/lib/supabase-server';
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     const tournamentUpdated = await db.from('tournaments').update({ last_elimination_name: profile.name, last_elimination_at: Date.now(), last_elimination_message: message }).eq('id', tournament.id);
     if (tournamentUpdated.error) throw tournamentUpdated.error;
 
+    await logAction(db, { actor: profile, tournamentId: tournament.id, action: 'selfEliminate', summary: `Reportou a própria eliminação${message ? `: “${message}”` : ''}` });
     await notifyTournamentChange();
     return Response.json({ ok: true });
   } catch (error) {

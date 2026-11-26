@@ -1,3 +1,4 @@
+import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
 import { FORBIDDEN_MESSAGE, getAdminUser } from '@/lib/admin-auth';
 import { errorResponse } from '@/lib/db-errors';
 import { generateResetCode, hashResetCode, RESET_CODE_TTL_MS } from '@/lib/password-reset';
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     const inserted = await db.from('password_reset_tokens').insert({ user_id: userId, token_hash: hashResetCode(code), created_by: admin.id, created_at: now, expires_at: expiresAt });
     if (inserted.error) throw inserted.error;
 
+    await logAction(db, { actor: admin, action: 'generateResetCode', summary: `Gerou código de redefinição de senha para ${await profileName(db, userId)}`, details: { userId, expiresAt } });
     return Response.json({ code, expiresAt });
   } catch (error) { return errorResponse(error, 'Erro ao gerar código.'); }
 }

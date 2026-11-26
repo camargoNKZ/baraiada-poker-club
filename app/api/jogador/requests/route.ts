@@ -1,3 +1,4 @@
+import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit';
 import { notifyTournamentChange } from '@/lib/realtime';
 import { getPlayerProfile } from '@/lib/player-auth';
 import { getSupabase } from '@/lib/supabase-server';
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
     });
     if (inserted.error) throw inserted.error;
 
+    await logAction(db, { actor: profile, tournamentId: tournament.id, action: 'createRequest', summary: kind === 'register' ? 'Pediu inscrição no torneio' : `Pediu ${(KIND_LABEL[kind] ?? kind).toLowerCase()}${quantity > 1 ? ` ×${quantity}` : ''}` });
     await notifyTournamentChange();
     return Response.json({ ok: true });
   } catch (error) {
