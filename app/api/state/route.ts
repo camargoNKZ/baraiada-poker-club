@@ -1,7 +1,7 @@
 import { notifyTournamentChange } from '@/lib/realtime';
 import { brl, KIND_LABEL, logAction, playerName } from '@/lib/audit';
 import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-auth';
-import { clampIndex, clockAt, levelsOf, REBUY_CLOSED_MESSAGE, sanitizeStructure } from '@/lib/blinds';
+import { clampIndex, clockAt, levelsOf, purchaseBlockedReason, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { defaultTournament, payouts, pointsForPosition, prizePool, validPercentages } from '@/lib/tournament';
@@ -149,7 +149,8 @@ export async function POST(request: Request) {
       audit = { tournamentId: current.id, action: 'addPlayer', summary: `Cadastrou o jogador ${name}` };
     } else if (action === 'addTransaction') {
       const playerId = Number(body.playerId), kind = String(body.kind), quantity = Math.max(1, Math.floor(Number(body.quantity) || 1)), amount = Math.max(0, Math.round(Number(body.amount) || 0));
-      if (kind === 'reentry' && !clockAt(current).rebuyOpen) return Response.json({ error: REBUY_CLOSED_MESSAGE }, { status: 400 });
+      const blocked = purchaseBlockedReason(clockAt(current), kind);
+      if (blocked) return Response.json({ error: blocked }, { status: 400 });
       const total = kind === 'payment' ? -amount : amount * quantity;
       // Validação, gravação do lançamento e atualização do contador acontecem numa única transação no banco.
       const { error } = await db.rpc('record_purchase', { p_tournament_id: current.id, p_player_id: playerId, p_kind: kind, p_quantity: quantity, p_unit_amount: amount, p_total_amount: total, p_payment_method: String(body.paymentMethod ?? ''), p_note: String(body.note ?? '') });
