@@ -118,7 +118,7 @@ export const defaultGeneratorOptions: GeneratorOptions = {
 const NICE = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8];
 
 // Arredonda para valores "de mesa" (100, 120, 150, 200, 250, 300, 400, 500, 600, 800, 1.000...).
-function niceAbove(value: number, minimum: number) {
+export function niceAbove(value: number, minimum: number) {
   const candidates: number[] = [];
   const base = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(1, value))) - 1);
   for (let scale = base; scale <= base * 1000; scale *= 10) for (const step of NICE) candidates.push(Math.round(step * scale));

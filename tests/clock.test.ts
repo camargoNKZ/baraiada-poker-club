@@ -53,3 +53,39 @@ test('tempo até o intervalo', () => {
   assert.equal(at(10).secondsToBreak, 30 * 60);
   assert.equal(at(45).secondsToBreak, null);
 });
+
+import { PRESETS, suggestStructure } from '@/lib/blind-suggest';
+
+test('sugestão por duração cabe no tempo e sobe sempre', () => {
+  for (const { hours } of PRESETS) {
+    for (const players of [6, 12, 30]) {
+      const s = suggestStructure({ hours, players, stack: 20000 });
+      const planned: typeof s.levels = [];
+      let count = 0;
+      for (const l of s.levels) { if (l.kind === 'level') count += 1; if (count > s.plannedLevels) break; planned.push(l); }
+      const minutes = planned.reduce((sum, l) => sum + l.durationMinutes, 0);
+      assert.ok(minutes <= hours * 60, `${hours}h/${players}: ${minutes} min`);
+      assert.ok(minutes >= hours * 60 * 0.75, `${hours}h/${players}: só ${minutes} min`);
+      const bigs = s.levels.filter((l) => l.kind === 'level').map((l) => l.bigBlind);
+      for (let i = 1; i < bigs.length; i += 1) assert.ok(bigs[i] > bigs[i - 1]);
+      assert.ok(s.levels.some((l) => l.kind === 'break'), 'tem intervalo');
+      const first = s.levels.find((l) => l.kind === 'level')!;
+      assert.equal(first.smallBlind * 2, first.bigBlind);
+    }
+  }
+});
+
+import { chipDistribution, recommendedDepth } from '@/lib/blind-suggest';
+
+test('stack inicial dentro da faixa recomendada e fichas somando o stack', () => {
+  for (const hours of [2, 3, 4, 5, 6]) {
+    for (const stack of [10000, 20000, 25000, 30000]) {
+      const s = suggestStructure({ hours, players: 12, stack });
+      const range = recommendedDepth(hours);
+      assert.ok(s.depthBB >= range.min * 0.8 && s.depthBB <= range.max * 1.35, `${hours}h ${stack}: ${s.depthBB} BB`);
+      assert.equal(s.chips.reduce((sum, c) => sum + c.value * c.count, 0), stack, `${hours}h ${stack}`);
+      assert.ok(s.chips.length >= 2 && s.chips.length <= 4);
+    }
+  }
+  assert.deepEqual(chipDistribution(20000, 100, 200).map((c) => c.value), [100, 500, 1000, 5000]);
+});
