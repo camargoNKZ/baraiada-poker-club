@@ -108,19 +108,22 @@ export function AdminSelfPlay() {
 
             <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-5">
               {!state.player || state.player.entries < 1 ? (
-                <>
-                  <Button disabled={busy || !state.tournament.entryOpen} title={state.tournament.entryOpen ? undefined : 'Entradas encerradas no fim do 1º intervalo'} onClick={() => launch('entry', 1)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> {state.tournament.entryOpen ? `Entrada (${money(state.tournament.entryValue)})` : 'Entradas encerradas'}</Button>
-                  <Button disabled={busy || !state.tournament.entryOpen} title={state.tournament.entryOpen ? undefined : 'Entradas encerradas no fim do 1º intervalo'} onClick={() => launch('entry', 2)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> Entrada dupla ({money(state.tournament.entryValue * 2)})</Button>
+                state.tournament.entryOpen && <>
+                  <Button disabled={busy} onClick={() => launch('entry', 1)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> Entrada ({money(state.tournament.entryValue)})</Button>
+                  <Button disabled={busy} onClick={() => launch('entry', 2)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> Entrada dupla ({money(state.tournament.entryValue * 2)})</Button>
                 </>
               ) : (
                 <>
-                  <Button disabled={busy || !state.tournament.rebuyOpen} title={state.tournament.rebuyOpen ? undefined : 'Rebuy encerrado no fim do 1º intervalo'} onClick={() => launch('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> {state.tournament.rebuyOpen ? `Reentrada (${money(state.tournament.reentryValue)})` : 'Rebuy encerrado'}</Button>
-                  <Button disabled={busy || !state.tournament.rebuyOpen} title={state.tournament.rebuyOpen ? undefined : 'Rebuy encerrado no fim do 1º intervalo'} onClick={() => launch('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
-                  {(state.player?.addons ?? 0) < 1 && (
-                    <Button disabled={busy || !state.tournament.addonOpen} title={state.tournament.addonOpen ? undefined : 'Add-on só durante o 1º intervalo'} onClick={() => launch('addon', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> {state.tournament.addonOpen ? `Add-on (${money(state.tournament.addonValue)})` : 'Add-on só no 1º intervalo'}</Button>
+                  {/* Cada botão só aparece enquanto a ação está disponível. */}
+                  {state.tournament.rebuyOpen && <>
+                    <Button disabled={busy} onClick={() => launch('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada ({money(state.tournament.reentryValue)})</Button>
+                    <Button disabled={busy} onClick={() => launch('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
+                  </>}
+                  {state.tournament.addonOpen && (state.player?.addons ?? 0) < 1 && (
+                    <Button disabled={busy} onClick={() => launch('addon', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> Add-on ({money(state.tournament.addonValue)})</Button>
                   )}
-                  {state.player?.status === 'active' && (
-                    <Button disabled={busy || !state.tournament.eliminationOpen} onClick={() => setEliminating(true)} variant="outline" className="h-10 border-[#d88383]/30 bg-[#d88383]/8 px-4 text-[#e5a0a0] hover:bg-[#d88383]/15"><Flag className="size-4" /> {!state.tournament.eliminationOpen ? 'Eliminação (após o 1º intervalo)' : 'Reportar eliminação'}</Button>
+                  {state.tournament.eliminationOpen && state.player?.status === 'active' && (
+                    <Button disabled={busy} onClick={() => setEliminating(true)} variant="outline" className="h-10 border-[#d88383]/30 bg-[#d88383]/8 px-4 text-[#e5a0a0] hover:bg-[#d88383]/15"><Flag className="size-4" /> Reportar eliminação</Button>
                   )}
                 </>
               )}
