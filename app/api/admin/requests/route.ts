@@ -102,13 +102,35 @@ export async function POST(request: Request) {
       const updated = await db.from('player_requests').update({ status: 'approved', resolved_at: Date.now(), resolved_by: admin.id, player_id: inserted.data.id }).eq('id', requestId);
       if (updated.error) throw updated.error;
     } else {
-      if (!req.player_id) return Response.json({ error: 'Jogador da solicitação não encontrado.' }, { status: 400 });
-      const playerResult = await db.from('players').select('*').eq('id', req.player_id).maybeSingle();
+      const blocked = purchaseBlockedReason(clockFromRow(tournament), req.kind);
+      if (blocked) return Response.json({ error: `${blocked} Recuse a solicitação.` }, { status: 400 });
+      // Pedido de entrada de quem ainda não está no torneio: inscreve o jogador e depois lança a entrada.
+      let playerId = req.player_id as number | null;
+      if (!playerId && req.kind === 'entry') {
+        const existing = await db.from('players').select('id').eq('tournament_id', tournament.id).eq('profile_id', req.profile_id).maybeSingle();
+        if (existing.error) throw existing.error;
+        if (existing.data) playerId = existing.data.id;
+        else {
+          const profileResult = await db.from('player_profiles').select('*').eq('user_id', req.profile_id).maybeSingle();
+          if (profileResult.error) throw profileResult.error;
+          const profile = profileResult.data;
+          if (!profile) return Response.json({ error: 'Perfil do jogador não encontrado.' }, { status: 400 });
+          const created = await db.from('players').insert({
+            tournament_id: tournament.id, profile_id: profile.user_id, name: profile.name, nickname: profile.nickname,
+            phone: profile.phone, email: profile.email, document: profile.document, notes: '', status: 'registered',
+            entries: 0, reentries: 0, addons: 0, chips: 0, table_no: '', eliminated_at: null, created_at: Date.now(),
+          }).select('id').single();
+          if (created.error) throw created.error;
+          playerId = created.data.id;
+        }
+        const linked = await db.from('player_requests').update({ player_id: playerId }).eq('id', requestId);
+        if (linked.error) throw linked.error;
+      }
+      if (!playerId) return Response.json({ error: 'Jogador da solicitação não encontrado.' }, { status: 400 });
+      const playerResult = await db.from('players').select('*').eq('id', playerId).maybeSingle();
       if (playerResult.error) throw playerResult.error;
       const player = playerResult.data;
       if (!player) return Response.json({ error: 'Jogador da solicitação não encontrado.' }, { status: 400 });
-      const blocked = purchaseBlockedReason(clockFromRow(tournament), req.kind);
-      if (blocked) return Response.json({ error: `${blocked} Recuse a solicitação.` }, { status: 400 });
       const amountMap: Record<string, number> = { entry: tournament.entry_value, reentry: tournament.reentry_value, addon: tournament.addon_value };
       const amount = amountMap[req.kind];
       const isSupport = await isSupportProfile(db, player.profile_id);

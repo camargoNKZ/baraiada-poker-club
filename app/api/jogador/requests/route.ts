@@ -15,7 +15,8 @@ export async function POST(request: Request) {
 
     const body = await request.json() as Record<string, unknown>;
     const kind = String(body.kind ?? '');
-    const quantity = Math.max(1, Math.min(10, Math.floor(Number(body.quantity) || 1)));
+    // Entrada e reentrada: simples (1) ou dupla (2).
+    const quantity = Math.max(1, Math.min(2, Math.floor(Number(body.quantity) || 1)));
     const note = String(body.note ?? '').trim();
     if (!KINDS.includes(kind)) return Response.json({ error: 'Solicitação inválida.' }, { status: 400 });
 
@@ -33,13 +34,16 @@ export async function POST(request: Request) {
 
     if (kind === 'register') {
       if (player) return Response.json({ error: 'Você já está inscrito neste torneio.' }, { status: 400 });
+    } else if (kind === 'entry') {
+      // Pedir a entrada já é a inscrição: quem ainda não está no torneio entra quando o pedido é aprovado.
+      if (player && Number(player.entries) >= 1) return Response.json({ error: 'Sua entrada já foi lançada. Para comprar de novo, peça uma reentrada.' }, { status: 400 });
     } else {
-      if (!player) return Response.json({ error: 'Inscreva-se no torneio antes de solicitar lançamentos.' }, { status: 400 });
+      if (!player) return Response.json({ error: 'Solicite sua entrada antes de reentradas ou add-ons.' }, { status: 400 });
       if ((kind === 'reentry' || kind === 'addon') && Number(player.entries) < 1) return Response.json({ error: 'Sua entrada ainda precisa ser aprovada antes de reentradas ou add-ons.' }, { status: 400 });
       if (kind === 'addon' && Number(player.addons) >= 1) return Response.json({ error: 'Você já lançou o add-on deste torneio.' }, { status: 400 });
     }
 
-    const pendingResult = await db.from('player_requests').select('id').eq('tournament_id', tournament.id).eq('profile_id', profile.id).eq('kind', kind).eq('status', 'pending').maybeSingle();
+    const pendingResult = await db.from('player_requests').select('id').eq('tournament_id', tournament.id).eq('profile_id', profile.id).in('kind', kind === 'entry' || kind === 'register' ? ['entry', 'register'] : [kind]).eq('status', 'pending').limit(1).maybeSingle();
     if (pendingResult.error) throw pendingResult.error;
     if (pendingResult.data) return Response.json({ error: 'Você já tem uma solicitação desse tipo aguardando aprovação.' }, { status: 400 });
 
@@ -48,7 +52,7 @@ export async function POST(request: Request) {
       profile_id: profile.id,
       player_id: player?.id ?? null,
       kind,
-      quantity: kind === 'register' ? 1 : quantity,
+      quantity: kind === 'register' || kind === 'addon' ? 1 : quantity,
       note,
       status: 'pending',
       requested_at: Date.now(),

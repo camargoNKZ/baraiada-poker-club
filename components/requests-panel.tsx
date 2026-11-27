@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 
 type PlayerRequest = { id: number; kind: string; quantity: number; note: string; status: string; requestedAt: number; resolvedAt: number | null; playerName: string; playerNickname: string; playerEmail: string; playerPhone: string };
 
+// "Entrada dupla" / "Reentrada dupla" quando o pedido é de 2.
+const requestLabel = (kind: string, quantity: number) => `${kindLabel[kind] ?? kind}${quantity > 1 ? (kind === 'entry' || kind === 'reentry' ? ' dupla' : ` ×${quantity}`) : ''}`;
 const kindLabel: Record<string, string> = { register: 'Inscrição no torneio', entry: 'Entrada', reentry: 'Reentrada', addon: 'Add-on' };
 const statusLabel: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pendente', className: 'bg-[#e3c578]/15 text-[#e3c578]' },
@@ -56,7 +58,7 @@ export function RequestsPanel() {
             <div key={item.id} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-semibold text-[#e7ece9]">{item.playerName}{item.playerNickname ? <span className="ml-2 font-normal text-[#789087]">"{item.playerNickname}"</span> : null}</p>
-                <p className="text-xs text-[#8da79e]">{kindLabel[item.kind] ?? item.kind} · {new Date(item.requestedAt).toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-[#8da79e]"><strong className="text-[#e3c578]">{requestLabel(item.kind, item.quantity)}</strong> · {new Date(item.requestedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
                 {item.note && <p className="mt-1 text-xs italic text-[#698179]">"{item.note}"</p>}
               </div>
               <div className="flex gap-2">
@@ -74,7 +76,7 @@ export function RequestsPanel() {
         <div className="divide-y divide-white/6">
           {resolved.slice(0, 30).map((item) => {
             const status = statusLabel[item.status] ?? statusLabel.pending;
-            return <div key={item.id} className="flex items-center justify-between px-6 py-3 text-sm"><div><p className="font-medium text-[#dce5e1]">{item.playerName} · {kindLabel[item.kind] ?? item.kind}</p><p className="text-xs text-[#698179]">{new Date(item.requestedAt).toLocaleString('pt-BR')}</p></div><span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[.08em] ${status.className}`}>{status.label}</span></div>;
+            return <div key={item.id} className="flex items-center justify-between px-6 py-3 text-sm"><div><p className="font-medium text-[#dce5e1]">{item.playerName} · {requestLabel(item.kind, item.quantity)}</p><p className="text-xs text-[#698179]">{new Date(item.requestedAt).toLocaleString('pt-BR')}</p></div><span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[.08em] ${status.className}`}>{status.label}</span></div>;
           })}
           {!resolved.length && <div className="px-6 py-8 text-center text-sm text-[#60786f]">O histórico aparece aqui depois da primeira aprovação/recusa.</div>}
         </div>
