@@ -12,5 +12,5 @@ export default async function AdminsPage() {
   if (!admin) redirect(await nonStaffRedirectPath());
   if (!admin.can.admin) redirect('/controle');
   const { tournament, members } = await loadMembers(getSupabase());
-  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={admin.can} /><AdminsPanel initialMembers={members} tournament={tournament} currentUserId={admin.id} /></main>;
+  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={admin.can} canPreview={admin.isAdmin} /><AdminsPanel initialMembers={members} tournament={tournament} currentUserId={admin.id} /></main>;
 }

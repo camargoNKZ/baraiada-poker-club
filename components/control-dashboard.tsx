@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Banknote, CircleDollarSign, Download, FileClock, Fl
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useTournamentState } from '@/hooks/use-tournament-state';
+import type { Permissions } from '@/lib/admin-auth';
 import { BlindStructureEditor } from '@/components/blind-structure-editor';
 import { TournamentClock, useNow } from '@/components/tournament-clock';
 import { clockAt, levelsOf } from '@/lib/blinds';
@@ -15,9 +16,10 @@ const kindLabel: Record<string, string> = { entry: 'Entrada', reentry: 'Reentrad
 
 type Launch = { playerId: number; playerName: string; kind: string; amount: string; quantity: string; paymentMethod: string; note: string };
 
-export function ControlDashboard() {
+export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = {}) {
   const { state, error, saving, mutate, serverOffset } = useTournamentState(10000);
-  const can = state?.permissions ?? { admin: false, floor: false, finance: false };
+  // Na visualização "Ver como", a tela segue as permissões do cargo escolhido.
+  const can = previewCan ?? state?.permissions ?? { admin: false, floor: false, finance: false };
   const now = useNow();
   // Rebuy só até o fim do primeiro intervalo.
   // Prazos das compras pelo relógio: entrada e rebuy até o fim do 1º intervalo, add-on só durante.

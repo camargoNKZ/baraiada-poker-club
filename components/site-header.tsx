@@ -1,11 +1,11 @@
 'use client';
 
-import { CircleDollarSign, History, ExternalLink, Inbox, LogOut, Menu, Settings2, Trophy, Tv, UserCog, X } from 'lucide-react';
+import { CircleDollarSign, Eye, History, ExternalLink, Inbox, LogOut, Menu, Settings2, Trophy, Tv, UserCog, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
-import type { Permissions } from '@/lib/admin-auth';
+import type { Permissions, ViewAs } from '@/lib/admin-auth';
 
 type NavItem = { href: string; label: string; icon: typeof Settings2; external?: boolean; requires?: keyof Permissions };
 
@@ -19,11 +19,31 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/painel', label: 'Painel', icon: Tv, external: true },
 ];
 
-export function SiteHeader({ adminEmail, permissions }: { adminEmail?: string; permissions?: Permissions } = {}) {
+const VIEW_LABEL: Record<ViewAs, string> = { admin: 'Administrador', dealer: 'Dealer', financeiro: 'Financeiro' };
+// Telas que existem para todos os cargos: dá para navegar entre elas mantendo o "Ver como".
+const PREVIEW_PAGES = ['/controle', '/controle/solicitacoes', '/controle/meu-jogo'];
+
+export function SiteHeader({ adminEmail, permissions, viewAs = 'admin', canPreview = false }: { adminEmail?: string; permissions?: Permissions; viewAs?: ViewAs; canPreview?: boolean } = {}) {
   const navItems = NAV_ITEMS.filter((item) => !item.requires || permissions?.[item.requires]);
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const previewing = viewAs !== 'admin';
+  const linkFor = (href: string) => previewing && PREVIEW_PAGES.includes(href) ? `${href}?ver=${viewAs}` : href;
+
+  // Troca o cargo visualizado na própria página (se ela existir para o cargo; senão, volta ao controle).
+  function changeView(next: ViewAs) {
+    const base = PREVIEW_PAGES.includes(pathname) ? pathname : '/controle';
+    router.push(next === 'admin' ? base : `${base}?ver=${next}`);
+  }
+
+  const viewSelect = canPreview && (
+    <label className="flex items-center gap-2 text-xs text-[#a48e6a]"><Eye className="size-3.5" /><span className="sr-only">Ver como</span>
+      <select aria-label="Ver como" value={viewAs} onChange={(event) => changeView(event.target.value as ViewAs)} className="h-8 rounded-full border border-white/10 bg-[#15100c] px-3 text-xs font-semibold text-[#f0e1b5]">
+        {(Object.keys(VIEW_LABEL) as ViewAs[]).map((key) => <option key={key} value={key}>{key === 'admin' ? 'Ver como: Administrador' : `Ver como: ${VIEW_LABEL[key]}`}</option>)}
+      </select>
+    </label>
+  );
 
   async function logout() {
     await getSupabaseBrowser().auth.signOut();
@@ -41,12 +61,12 @@ export function SiteHeader({ adminEmail, permissions }: { adminEmail?: string; p
 
         <nav aria-label="Áreas do sistema" className="hidden items-center rounded-full border border-white/8 bg-white/[0.035] p-1 lg:flex">
           {navItems.map(({ href, label, icon: Icon, external }) => (
-            <Link key={href} href={href} target={external ? '_blank' : undefined} className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Icon className="size-3.5" /> {label} {external && <ExternalLink className="hidden size-3 sm:block" />}</Link>
+            <Link key={href} href={linkFor(href)} target={external ? '_blank' : undefined} className={`flex items-center gap-2 rounded-full px-3.5 py-2 text-xs font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Icon className="size-3.5" /> {label} {external && <ExternalLink className="hidden size-3 sm:block" />}</Link>
           ))}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
-          {adminEmail && <span className="max-w-[160px] truncate text-xs text-[#a48e6a]">{adminEmail}</span>}
+          {canPreview ? viewSelect : adminEmail && <span className="max-w-[160px] truncate text-xs text-[#a48e6a]">{adminEmail}</span>}
           <button onClick={logout} className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><LogOut className="size-3.5" /> Sair</button>
         </div>
 
@@ -57,11 +77,22 @@ export function SiteHeader({ adminEmail, permissions }: { adminEmail?: string; p
         <div className="border-t border-[#c9a45a]/15 bg-[#0d0c0a] px-5 py-4 lg:hidden">
           <nav aria-label="Áreas do sistema (mobile)" className="flex flex-col gap-1">
             {navItems.map(({ href, label, icon: Icon, external }) => (
-              <Link key={href} href={href} target={external ? '_blank' : undefined} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:bg-white/5 hover:text-[#f0e1b5]'}`}><Icon className="size-4" /> {label} {external && <ExternalLink className="ml-auto size-3.5" />}</Link>
+              <Link key={href} href={linkFor(href)} target={external ? '_blank' : undefined} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:bg-white/5 hover:text-[#f0e1b5]'}`}><Icon className="size-4" /> {label} {external && <ExternalLink className="ml-auto size-3.5" />}</Link>
             ))}
           </nav>
+          {canPreview && <div className="mt-3 px-4">{viewSelect}</div>}
           {adminEmail && <p className="mt-3 truncate px-4 text-xs text-[#a48e6a]">{adminEmail}</p>}
           <button onClick={logout} className="mt-2 flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><LogOut className="size-4" /> Sair</button>
+        </div>
+      )}
+
+      {previewing && (
+        <div role="status" className="border-t border-[#e3c578]/30 bg-[#e3c578]/12 px-5 py-2.5 lg:px-8">
+          <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#f0e1b5]">
+            <Eye className="size-4 text-[#e3c578]" />
+            <span><strong>Visualizando como {VIEW_LABEL[viewAs]}.</strong> Os botões continuam funcionando com a sua permissão de administrador: qualquer ação aqui é real.</span>
+            <button type="button" onClick={() => changeView('admin')} className="ml-auto rounded-full border border-[#e3c578]/40 px-3 py-1 font-semibold text-[#e3c578] hover:bg-[#e3c578]/10">Sair da visualização</button>
+          </div>
         </div>
       )}
     </header>
