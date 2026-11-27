@@ -6,15 +6,16 @@ type Db = ReturnType<typeof getSupabase>;
 
 export type ClosingResult = { id: number; position: number; playerName: string; points: number; prize: number; paidAt: number | null; method: string; receiptUrl: string | null };
 export type Closing = {
-  tournament: { id: number; name: string; status: string; finishedAt: number | null; rakeEnabled: boolean; rakePercent: number };
+  tournament: { id: number; name: string; status: string; finishedAt: number | null; rakeEnabled: boolean; rakePercent: number; closedAt: number | null; closedBy: string };
   summary: { gross: number; rake: number; prizePool: number; received: number; outstanding: number; prizesPaid: number; prizesPending: number };
   results: ClosingResult[];
   photoUrl: string | null;
+  missing: string[]; // o que falta para finalizar o fechamento
 };
 
 // Fechamento de um torneio: dinheiro arrecadado, rake, premiação, recebimentos e prêmios pagos.
 export async function loadClosing(db: Db, tournamentId: number): Promise<Closing | null> {
-  const t = await db.from('tournaments').select('id, name, status, finished_at, rake_enabled, rake_percent, top3_photo_path').eq('id', tournamentId).maybeSingle();
+  const t = await db.from('tournaments').select('id, name, status, finished_at, rake_enabled, rake_percent, top3_photo_path, closed_at, closed_by').eq('id', tournamentId).maybeSingle();
   if (t.error) throw t.error;
   if (!t.data) return null;
   const [txs, results] = await Promise.all([
@@ -36,10 +37,23 @@ export async function loadClosing(db: Db, tournamentId: number): Promise<Closing
   })));
   const prizesPaid = rows.filter((r) => r.prize > 0 && r.paidAt).reduce((sum, r) => sum + r.prize, 0);
   const prizesTotal = rows.reduce((sum, r) => sum + r.prize, 0);
+  // Requisitos para finalizar: torneio encerrado, jogadores quitados, prêmios pagos e foto do top 3.
+  const missing: string[] = [];
+  if (t.data.status !== 'finished') missing.push('Encerrar o torneio');
+  if (gross - received > 0) missing.push('Receber todos os pagamentos dos jogadores');
+  const unpaid = rows.filter((r) => r.prize > 0 && !r.paidAt).length;
+  if (unpaid) missing.push(`Pagar ${unpaid === 1 ? '1 prêmio' : `${unpaid} prêmios`}`);
+  if (!t.data.top3_photo_path) missing.push('Anexar a foto do top 3');
+  let closedBy = '';
+  if (t.data.closed_by) {
+    const who = await db.from('player_profiles').select('name').eq('user_id', t.data.closed_by).maybeSingle();
+    closedBy = (who.data?.name as string | undefined) ?? '';
+  }
   return {
-    tournament: { id: t.data.id, name: t.data.name, status: t.data.status, finishedAt: t.data.finished_at ?? null, rakeEnabled: Boolean(t.data.rake_enabled), rakePercent: Number(t.data.rake_percent ?? 0) },
+    tournament: { id: t.data.id, name: t.data.name, status: t.data.status, finishedAt: t.data.finished_at ?? null, rakeEnabled: Boolean(t.data.rake_enabled), rakePercent: Number(t.data.rake_percent ?? 0), closedAt: t.data.closed_at ?? null, closedBy },
     summary: { gross, rake, prizePool: gross - rake, received, outstanding: gross - received, prizesPaid, prizesPending: prizesTotal - prizesPaid },
     results: rows,
     photoUrl: photoUrl(t.data.top3_photo_path),
+    missing,
   };
 }

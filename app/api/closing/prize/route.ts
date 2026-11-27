@@ -22,6 +22,8 @@ export async function POST(request: Request) {
     const result = await db.from('tournament_results').select('id, tournament_id, player_name, position, prize_amount, paid_at').eq('id', resultId).maybeSingle();
     if (result.error) throw result.error;
     if (!result.data || !(result.data.prize_amount > 0)) return Response.json({ error: 'Prêmio não encontrado.' }, { status: 400 });
+    const closed = await db.from('tournaments').select('closed_at').eq('id', result.data.tournament_id).maybeSingle();
+    if (closed.data?.closed_at) return Response.json({ error: 'O fechamento deste torneio já foi finalizado e não pode mais ser alterado.' }, { status: 400 });
     if (result.data.paid_at) return Response.json({ error: 'Este prêmio já foi marcado como pago.' }, { status: 400 });
 
     const receiptPath = receipt ? await uploadFile(db, RECEIPTS_BUCKET, `prizes/${result.data.tournament_id}/${resultId}`, receipt, 'receipt') : null;

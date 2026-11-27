@@ -1,6 +1,6 @@
 'use client';
 
-import { Camera, Check, FileText, Medal, ReceiptText, Wallet, X } from 'lucide-react';
+import { Camera, Check, CircleAlert, FileText, Lock, Medal, ReceiptText, Wallet, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/compress-image';
@@ -60,6 +60,19 @@ export function ClosingPanel() {
     finally { setBusy(false); }
   }
 
+  async function finalize() {
+    if (!closing) return;
+    if (!confirm('Finalizar o fechamento? Depois disso prêmios, comprovantes e a foto do top 3 não poderão mais ser alterados.')) return;
+    setBusy(true); setError('');
+    try {
+      const response = await fetch('/api/closing/finalize', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tournamentId: closing.tournament.id }) });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || 'Não foi possível finalizar o fechamento.');
+      await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Erro de conexão.'); }
+    finally { setBusy(false); }
+  }
+
   async function uploadPhoto(file: File | null) {
     if (!file || !closing) return;
     setBusy(true); setError('');
@@ -78,6 +91,8 @@ export function ClosingPanel() {
   const s = closing?.summary;
   const prizes = (closing?.results ?? []).filter((r) => r.prize > 0);
   const finished = closing?.tournament.status === 'finished';
+  // Fechamento finalizado: tudo fica somente leitura.
+  const locked = Boolean(closing?.tournament.closedAt);
 
   return (
     <div className="baraiada-control mx-auto max-w-[1500px] px-5 py-7 lg:px-8">
@@ -89,6 +104,14 @@ export function ClosingPanel() {
       </div>
       {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
       {!closing ? <p className="py-16 text-center text-sm text-[#789087]">{error ? '' : 'Carregando…'}</p> : <>
+        {locked ? (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-[#65d19e]/35 bg-[#65d19e]/10 px-4 py-3 text-sm text-[#8fdcb5]"><Lock className="size-4 shrink-0" /><span><strong>Fechamento finalizado</strong> em {when(closing.tournament.closedAt!)}{closing.tournament.closedBy ? ` por ${closing.tournament.closedBy}` : ''}. Nada mais pode ser alterado.</span></div>
+        ) : finished && (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[.03] px-4 py-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1 text-sm">{closing.missing.length ? <><p className="flex items-center gap-2 font-semibold text-[#e3c578]"><CircleAlert className="size-4" /> Para finalizar o fechamento falta:</p><ul className="mt-1 list-disc pl-6 text-[#c7d2cd]">{closing.missing.map((item) => <li key={item}>{item}</li>)}</ul></> : <p className="font-semibold text-[#8fdcb5]">Tudo pago e com foto. Já é possível finalizar o fechamento.</p>}</div>
+            <button type="button" disabled={busy || closing.missing.length > 0} onClick={finalize} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[#65d19e] px-4 text-sm font-bold text-[#062b16] hover:bg-[#7fe0b0] disabled:cursor-not-allowed disabled:opacity-40"><Lock className="size-4" /> Finalizar fechamento</button>
+          </div>
+        )}
         {!finished && <div className="mb-4 rounded-xl border border-[#e3c578]/30 bg-[#e3c578]/10 px-4 py-3 text-sm text-[#e3c578]">Este torneio ainda está em andamento. Os prêmios aparecem aqui depois do encerramento, e o encerramento só é liberado com todos os jogadores quitados.</div>}
 
         <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -112,7 +135,7 @@ export function ClosingPanel() {
                   {r.paidAt ? (
                     <div className="flex items-center gap-2">{r.receiptUrl && <a href={r.receiptUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-[#c7d2cd] hover:bg-white/5"><FileText className="size-3.5" /> Comprovante</a>}<span className="rounded-full bg-[#65d19e]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.08em] text-[#65d19e]">Pago</span></div>
                   ) : (
-                    <button type="button" disabled={!finished} onClick={() => { setPaying(r); setMethod('Pix'); setReceipt(null); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#d7b66a] px-3 text-xs font-bold text-[#14251e] hover:bg-[#e5c779] disabled:opacity-40"><Check className="size-3.5" /> Marcar como pago</button>
+                    <>{!locked && <button type="button" disabled={!finished} onClick={() => { setPaying(r); setMethod('Pix'); setReceipt(null); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#d7b66a] px-3 text-xs font-bold text-[#14251e] hover:bg-[#e5c779] disabled:opacity-40"><Check className="size-3.5" /> Marcar como pago</button>}{locked && <span className="rounded-full bg-[#d88383]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.08em] text-[#e5a0a0]">Não pago</span>}</>
                   )}
                 </div>
               ))}
@@ -124,7 +147,7 @@ export function ClosingPanel() {
             <div className="flex items-center gap-2"><Camera className="size-4 text-[#d7b66a]" /><h2 className="text-lg font-semibold text-white">Foto do top 3</h2></div>
             <p className="mt-1 text-xs text-[#718a81]">Aparece no fechamento e no ranking.</p>
             {closing.photoUrl ? <img src={closing.photoUrl} alt={`Top 3 de ${closing.tournament.name}`} className="mt-4 aspect-[4/3] w-full rounded-xl border border-white/10 object-cover" /> : <div className="mt-4 grid aspect-[4/3] place-items-center rounded-xl border border-dashed border-white/15 text-sm text-[#60786f]">Nenhuma foto ainda</div>}
-            <label className={`mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg px-4 text-sm font-bold ${busy ? 'opacity-50' : ''} bg-[#d7b66a] text-[#14251e] hover:bg-[#e5c779]`}><Camera className="size-4" /> {closing.photoUrl ? 'Trocar foto' : 'Anexar foto'}<input type="file" accept="image/*" disabled={busy} className="sr-only" onChange={(event) => { void uploadPhoto(event.target.files?.[0] ?? null); event.target.value = ''; }} /></label>
+            {!locked && <label className={`mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg px-4 text-sm font-bold ${busy ? 'opacity-50' : ''} bg-[#d7b66a] text-[#14251e] hover:bg-[#e5c779]`}><Camera className="size-4" /> {closing.photoUrl ? 'Trocar foto' : 'Anexar foto'}<input type="file" accept="image/*" disabled={busy} className="sr-only" onChange={(event) => { void uploadPhoto(event.target.files?.[0] ?? null); event.target.value = ''; }} /></label>}
           </div>
         </section>
       </>}
