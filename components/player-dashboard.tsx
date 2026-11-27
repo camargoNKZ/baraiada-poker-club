@@ -1,6 +1,7 @@
 'use client';
 
-import { AddonPrompt, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
+import { MyPrizes, type PrizeItem } from '@/components/my-prizes';
+import { AddonPrompt, type ClaimStatus, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { CircleDollarSign, Clock3, ExternalLink, Flag, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -15,7 +16,7 @@ type PlayerRow = { id: number; addonDeclined: boolean; status: string; entries: 
 type PlayerRequest = { id: number; kind: string; quantity: number; status: string; note: string; requestedAt: number; resolvedAt: number | null };
 type Accounting = { charged: number; paid: number; balance: number };
 type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: number; createdAt: number };
-type JogadorState = { profile: PlayerProfile; roleLabel: string; tournament: Tournament | null; player: PlayerRow | null; requests: PlayerRequest[]; accounting: Accounting; extract: ExtractItem[]; pool: number };
+type JogadorState = { profile: PlayerProfile; roleLabel: string; tournament: Tournament | null; player: PlayerRow | null; requests: PlayerRequest[]; accounting: Accounting; extract: ExtractItem[]; pool: number; paymentClaim: ClaimStatus; prizes: PrizeItem[] };
 
 const kindLabel: Record<string, string> = { register: 'Inscrição', entry: 'Entrada', reentry: 'Reentrada', addon: 'Add-on' };
 const requestLabel = (kind: string, quantity: number) => `${kindLabel[kind] ?? kind}${quantity > 1 && (kind === 'entry' || kind === 'reentry') ? ' dupla' : ''}`;
@@ -101,6 +102,8 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
 
         {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
 
+        <MyPrizes prizes={state.prizes} />
+
         {!state.tournament ? (
           <div className="panel rounded-[22px] border border-[#c9a45a]/20 px-6 py-12 text-center">
             <Trophy className="mx-auto size-7 text-[#d7b66a]" />
@@ -109,7 +112,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
         ) : (
           <>
             {askAddon && <AddonPrompt addonValue={state.tournament.addonValue} busy={sending} onYes={() => sendRequest('addon', 1)} onNo={declineAddon} />}
-            {!askAddon && state.player && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
+            {!askAddon && state.player && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} claim={state.paymentClaim} onClaimed={() => void refresh()} />}
             <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>

@@ -2,6 +2,7 @@ import { brl, KIND_LABEL, logAction, playerName, profileName } from '@/lib/audit
 import { notifyTournamentChange } from '@/lib/realtime';
 import { getAdminUser } from '@/lib/admin-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { latestClaim, playerPrizes } from '@/lib/player-money';
 import { clockFromRow, purchaseBlockedReason } from '@/lib/blinds';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
@@ -78,6 +79,8 @@ async function buildSelfState(db: Db, admin: { id: string; name: string; nicknam
     accounting,
     extract: extract.map((item) => ({ id: item.id, kind: kindLabel[item.kind] ?? item.kind, quantity: item.quantity, totalAmount: item.totalAmount, createdAt: item.createdAt })),
     pool,
+    paymentClaim: await latestClaim(db, player?.id ?? null),
+    prizes: await playerPrizes(db, admin.id),
   };
 }
 
