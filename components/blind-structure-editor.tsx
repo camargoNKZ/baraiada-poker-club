@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, Coffee, Layers, Plus, Save, Trash2, Wand2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { StructureSource } from '@/components/structure-source';
 import { type BlindLevel, defaultGeneratorOptions, type GeneratorOptions, generateStructure } from '@/lib/blinds';
 
 const fieldClass = 'mt-2 h-10 w-full rounded-xl border border-white/10 bg-[#081f18] px-3 text-sm text-white outline-none focus:border-[#d7b66a]/60';
@@ -56,12 +57,12 @@ export function BlindStructureEditor({ levels, currentIndex, saving, onSave }: {
     <section className="panel mb-4 rounded-[22px] border border-white/8">
       <div className="flex flex-col gap-3 border-b border-white/8 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div><div className="flex items-center gap-2"><Layers className="size-4 text-[#d7b66a]" /><h2 className="text-lg font-semibold text-white">Estrutura de blinds</h2></div><p className="mt-1 text-xs text-[#718a81]">{rows.filter((r) => r.kind === 'level').length} níveis · {rows.filter((r) => r.kind === 'break').length} intervalos · {Math.floor(totalMinutes / 60)}h{String(totalMinutes % 60).padStart(2, '0')} no total. Os blinds sobem sozinhos ao fim de cada nível.</p></div>
-        <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setShowGenerator((v) => !v)} className="h-9 border-white/10 bg-white/[.03] px-3 text-white hover:bg-white/8"><Wand2 className="size-4" /> Gerador</Button><Button type="button" disabled={saving || !dirty} onClick={save} className="h-9 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><Save className="size-4" /> {dirty ? 'Salvar estrutura' : 'Salva'}</Button></div>
+        <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setShowGenerator((v) => !v)} className="h-9 border-white/10 bg-white/[.03] px-3 text-white hover:bg-white/8"><Wand2 className="size-4" /> {showGenerator ? 'Fechar' : 'Montar estrutura'}</Button><Button type="button" disabled={saving || !dirty} onClick={save} className="h-9 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><Save className="size-4" /> {dirty ? 'Salvar estrutura' : 'Salva'}</Button></div>
       </div>
 
       {showGenerator && (
         <div className="border-b border-white/8 bg-black/10 p-5 sm:p-6">
-          <p className="mb-4 text-xs text-[#8da79e]">Preencha e clique em “Gerar”. Depois ajuste nível a nível na tabela, se quiser.</p>
+          <StructureSource confirmReplace={dirty} current={rows.map(({ key, ...rest }) => ({ ...rest, id: `r${key}` }))} onApply={(levels) => { setRows(toRows(levels)); setDirty(true); }} manual={<>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {option('totalLevels', 'Quantidade de níveis')}
             {option('levelMinutes', 'Duração do nível (min)')}
@@ -74,6 +75,7 @@ export function BlindStructureEditor({ levels, currentIndex, saving, onSave }: {
           </div>
           <p className="mt-3 text-xs text-[#60786f]">“Níveis até o intervalo” em 0 gera a estrutura sem intervalos. Os valores são arredondados para números de mesa (100, 150, 200, 250, 300, 400, 500...).</p>
           <Button type="button" onClick={generate} className="mt-4 h-10 bg-[#d7b66a] px-5 font-bold text-[#14251e] hover:bg-[#e5c779]"><Wand2 className="size-4" /> Gerar estrutura</Button>
+          </>} />
         </div>
       )}
 

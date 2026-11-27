@@ -53,3 +53,24 @@ test('tempo até o intervalo', () => {
   assert.equal(at(10).secondsToBreak, 30 * 60);
   assert.equal(at(45).secondsToBreak, null);
 });
+
+import { PRESETS, suggestStructure } from '@/lib/blind-suggest';
+
+test('sugestão por duração cabe no tempo e sobe sempre', () => {
+  for (const { hours } of PRESETS) {
+    for (const players of [6, 12, 30]) {
+      const s = suggestStructure({ hours, players, stack: 20000 });
+      const planned: typeof s.levels = [];
+      let count = 0;
+      for (const l of s.levels) { if (l.kind === 'level') count += 1; if (count > s.plannedLevels) break; planned.push(l); }
+      const minutes = planned.reduce((sum, l) => sum + l.durationMinutes, 0);
+      assert.ok(minutes <= hours * 60, `${hours}h/${players}: ${minutes} min`);
+      assert.ok(minutes >= hours * 60 * 0.75, `${hours}h/${players}: só ${minutes} min`);
+      const bigs = s.levels.filter((l) => l.kind === 'level').map((l) => l.bigBlind);
+      for (let i = 1; i < bigs.length; i += 1) assert.ok(bigs[i] > bigs[i - 1]);
+      assert.ok(s.levels.some((l) => l.kind === 'break'), 'tem intervalo');
+      const first = s.levels.find((l) => l.kind === 'level')!;
+      assert.equal(first.smallBlind * 2, first.bigBlind);
+    }
+  }
+});

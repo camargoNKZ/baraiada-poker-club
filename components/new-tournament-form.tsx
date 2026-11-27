@@ -1,7 +1,9 @@
 'use client';
 
 import { Layers, Sparkles, Wand2, X } from 'lucide-react';
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useState } from 'react';
+import { StructureSource } from '@/components/structure-source';
+import { suggestStructure } from '@/lib/blind-suggest';
 import { type BlindLevel, defaultGeneratorOptions, type GeneratorOptions, generateStructure } from '@/lib/blinds';
 import { defaultPercentages, money, percentagesTotal, type TournamentTemplate } from '@/lib/tournament';
 
@@ -22,9 +24,10 @@ export function NewTournamentForm({ template, saving, error, onCancel, onSubmit 
   });
   const [percentages, setPercentages] = useState<string[]>((template?.payoutPercentages?.length ? template.payoutPercentages : defaultPercentages(3)).map(String));
   const previousLevels = template?.blindLevels ?? [];
-  const [structureMode, setStructureMode] = useState<'previous' | 'generate'>(previousLevels.length > 1 ? 'previous' : 'generate');
   const [generator, setGenerator] = useState<GeneratorOptions>(defaultGeneratorOptions);
-  const levels: BlindLevel[] = useMemo(() => structureMode === 'previous' ? previousLevels : generateStructure(generator), [structureMode, generator, previousLevels]);
+  // Começa com a estrutura do último torneio; se não houver, com a sugestão padrão de 3 horas.
+  const [levels, setLevels] = useState<BlindLevel[]>(() => previousLevels.length > 1 ? previousLevels : suggestStructure({ hours: 3, players: 12, stack: 20000 }).levels);
+  const [levelsLabel, setLevelsLabel] = useState(previousLevels.length > 1 ? 'a do último torneio' : 'sugestão de 3h');
 
   const numbers = percentages.map((v) => Number(v) || 0);
   const sum = percentagesTotal(numbers);
@@ -50,7 +53,7 @@ export function NewTournamentForm({ template, saving, error, onCancel, onSubmit 
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#020b08]/80 p-4 backdrop-blur-sm sm:p-8">
-      <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="new-t-title" className="mx-auto w-full max-w-3xl rounded-[22px] border border-white/10 bg-[#0c281f] p-5 shadow-2xl sm:p-7">
+      <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="new-t-title" className="mx-auto w-full max-w-3xl text-left rounded-[22px] border border-white/10 bg-[#0c281f] p-5 shadow-2xl sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">Começar novo torneio</p><h2 id="new-t-title" className="mt-2 text-2xl font-semibold text-white">Configure antes de abrir</h2><p className="mt-1 text-xs text-[#8da79e]">Os valores vêm do último torneio. Tudo isso pode ser ajustado depois em Configuração do torneio.</p></div>
           <button type="button" aria-label="Fechar" onClick={onCancel} className="grid size-8 shrink-0 place-items-center rounded-full border border-white/8 text-[#8da79e] hover:text-white"><X className="size-4" /></button>
@@ -76,15 +79,12 @@ export function NewTournamentForm({ template, saving, error, onCancel, onSubmit 
 
         <div className="mt-6 border-t border-white/8 pt-5">
           <div className="flex items-center gap-2"><Layers className="size-4 text-[#d7b66a]" /><h3 className="text-sm font-semibold text-white">Estrutura de blinds</h3></div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {previousLevels.length > 1 && <button type="button" onClick={() => setStructureMode('previous')} className={`h-9 rounded-lg px-3 text-xs font-semibold ${structureMode === 'previous' ? 'bg-[#d7b66a] text-[#14251e]' : 'border border-white/10 text-[#c7d2cd]'}`}>Usar a do último torneio</button>}
-            <button type="button" onClick={() => setStructureMode('generate')} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${structureMode === 'generate' ? 'bg-[#d7b66a] text-[#14251e]' : 'border border-white/10 text-[#c7d2cd]'}`}><Wand2 className="size-3.5" /> Gerar nova</button>
-          </div>
-          {structureMode === 'generate' && <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <p className="mt-1 text-xs text-[#8da79e]">Em uso: <strong className="text-white">{levelsLabel}</strong>{previousLevels.length > 1 && levelsLabel !== 'a do último torneio' && <> · <button type="button" onClick={() => { setLevels(previousLevels); setLevelsLabel('a do último torneio'); }} className="underline hover:text-white">voltar para a do último torneio</button></>}</p>
+          <div className="mt-3"><StructureSource current={levels} onApply={(next) => { setLevels(next); setLevelsLabel('escolhida acima'); }} manual={<><div className="grid gap-3 sm:grid-cols-4">
             {gen('totalLevels', 'Níveis')}{gen('levelMinutes', 'Minutos por nível')}{gen('levelsPerBreak', 'Níveis até o intervalo')}{gen('breakMinutes', 'Minutos de intervalo')}
             {gen('startSmall', 'Small blind inicial')}{gen('startBig', 'Big blind inicial')}{gen('increasePercent', 'Aumento por nível (%)')}
             <label className={labelClass}>Ante<select className={fieldClass} value={generator.ante} onChange={(e) => setGenerator({ ...generator, ante: e.target.value as GeneratorOptions['ante'] })}><option value="bb">Igual ao BB</option><option value="sb">Igual ao SB</option><option value="none">Sem ante</option></select></label>
-          </div>}
+          </div><button type="button" onClick={() => { setLevels(generateStructure(generator)); setLevelsLabel('gerada manualmente'); }} className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#d7b66a] px-3 text-xs font-bold text-[#14251e]"><Wand2 className="size-3.5" /> Gerar</button></>} /></div>
           <p className="mt-3 text-xs text-[#8da79e]">{levelCount} níveis · {breakCount} intervalos{firstLevel ? ` · começa em ${firstLevel.smallBlind}/${firstLevel.bigBlind}, ${firstLevel.durationMinutes} min por nível` : ''}. Ajuste nível a nível depois, em Estrutura de blinds.</p>
         </div>
 
