@@ -23,7 +23,7 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: 'Painel da sala', short_name: 'Painel', url: '/painel', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Controle', url: '/controle', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
-      { name: 'Minha área', short_name: 'Jogador', url: '/jogador', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
+      { name: 'Área do jogador', short_name: 'Jogador', url: '/jogador', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
       { name: 'Ranking', url: '/ranking', icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }] },
     ],
   };
