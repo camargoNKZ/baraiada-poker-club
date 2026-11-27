@@ -5,7 +5,7 @@ import { getSupabase } from '@/lib/supabase-server';
 import { clockFromRow, purchaseBlockedReason } from '@/lib/blinds';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
 import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
-import { playerAccounting, prizePool } from '@/lib/tournament';
+import { playerAccounting, netPrizePool, prizePool } from '@/lib/tournament';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +37,7 @@ async function ensurePlayerProfile(db: Db, admin: { id: string; name: string; ni
 }
 
 async function buildSelfState(db: Db, admin: { id: string; name: string; nickname: string; phone: string; email: string }) {
-  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes').eq('status', 'active').maybeSingle();
+  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes, rake_enabled, rake_percent').eq('status', 'active').maybeSingle();
   if (tournamentResult.error) throw tournamentResult.error;
   const tournamentRow = tournamentResult.data;
   const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, admin.id), supportRoleLabel(db, admin.id)]);
@@ -55,7 +55,8 @@ async function buildSelfState(db: Db, admin: { id: string; name: string; nicknam
     const transactionsResult = await db.from('financial_transactions').select('*').eq('tournament_id', tournamentRow.id);
     if (transactionsResult.error) throw transactionsResult.error;
     const allTransactions = (transactionsResult.data ?? []).map(transactionFromRow);
-    pool = prizePool(tournamentFromRow(tournamentRow) as any, [], allTransactions);
+    // Premiação já sem o rake (se ligado), igual ao painel da sala.
+      pool = netPrizePool(prizePool(tournamentFromRow(tournamentRow) as any, [], allTransactions), { rakeEnabled: Boolean(tournamentRow.rake_enabled), rakePercent: Number(tournamentRow.rake_percent ?? 0) });
 
     if (player) {
       accounting = playerAccounting(player.id, allTransactions);

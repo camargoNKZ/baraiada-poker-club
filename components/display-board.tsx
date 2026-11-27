@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTournamentState } from '@/hooks/use-tournament-state';
 import { clockAt, formatClock, levelsOf } from '@/lib/blinds';
-import { money, payouts, prizePool } from '@/lib/tournament';
+import { money, netPrizePool, payouts, prizePool } from '@/lib/tournament';
 
 const n = (value: number) => value.toLocaleString('pt-BR');
 
@@ -85,7 +85,8 @@ export function DisplayBoard() {
   const lastIndex = useRef<number | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
-  const pool = useMemo(() => state?.tournament ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
+  // Premiação já sem o rake (se ligado).
+  const pool = useMemo(() => state?.tournament ? netPrizePool(prizePool(state.tournament, state.players, state.transactions), state.tournament) : 0, [state]);
   const clock = state?.tournament ? clockAt(state.tournament, now + serverOffset) : null;
 
   // Alerta sonoro quando o nível muda (navegadores só liberam som depois de um clique na tela).
