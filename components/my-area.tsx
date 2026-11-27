@@ -9,7 +9,7 @@ const signed = (cents: number) => `${cents > 0 ? '+' : ''}${money(cents)}`;
 const tone = (cents: number) => cents > 0 ? 'text-[#65d19e]' : cents < 0 ? 'text-[#e5a0a0]' : 'text-[#f7edcf]';
 
 // "Minha área": desempenho do jogador no ano (torneios, vitórias, investido, prêmios, balanço, ranking) e o histórico.
-export function MyArea() {
+export function MyArea({ embedded = false }: { embedded?: boolean } = {}) {
   const [data, setData] = useState<{ profile: { name: string; nickname: string }; stats: PlayerStats } | null>(null);
   const [year, setYear] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -37,9 +37,9 @@ export function MyArea() {
   ] : [];
 
   return (
-    <main className="display-bg min-h-screen px-5 py-8 text-[#f0e1b5]">
+    <main className={embedded ? 'text-[#f0e1b5]' : 'display-bg min-h-screen px-5 py-8 text-[#f0e1b5]'}>
       <div className="mx-auto max-w-4xl">
-        <a href="/jogador" onClick={(e) => { if (history.length > 1) { e.preventDefault(); history.back(); } }} className="mb-5 inline-flex items-center gap-1.5 text-xs text-[#a48e6a] hover:text-[#f0e1b5]"><ArrowLeft className="size-3.5" /> Voltar</a>
+        {!embedded && <a href="/jogador" onClick={(e) => { if (history.length > 1) { e.preventDefault(); history.back(); } }} className="mb-5 inline-flex items-center gap-1.5 text-xs text-[#a48e6a] hover:text-[#f0e1b5]"><ArrowLeft className="size-3.5" /> Voltar</a>}
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#c9a45a]">Minha área</p><h1 className="mt-1 font-heading text-3xl font-bold uppercase tracking-[.04em]">{data?.profile.nickname || data?.profile.name || 'Meu desempenho'}</h1></div>
           {data && data.stats.years.length > 1 && <select aria-label="Ano" value={data.stats.year} onChange={(event) => setYear(Number(event.target.value))} className="h-10 rounded-lg border border-[#c9a45a]/25 bg-[#15100c] px-3 text-sm text-[#f7edcf]">{data.stats.years.map((y) => <option key={y} value={y}>{y}</option>)}</select>}

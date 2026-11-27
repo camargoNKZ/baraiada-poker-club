@@ -1,3 +1,4 @@
+import { getAdminUser } from '@/lib/admin-auth';
 import { errorResponse } from '@/lib/db-errors';
 import { getPlayerProfile } from '@/lib/player-auth';
 import { loadPlayerStats } from '@/lib/player-stats';
@@ -8,7 +9,8 @@ export const dynamic = 'force-dynamic';
 // Estatísticas do próprio jogador logado (?ano=AAAA).
 export async function GET(request: Request) {
   try {
-    const profile = await getPlayerProfile();
+    // Jogador cadastrado ou membro da equipe (que também pode jogar pelo Meu Jogo).
+    const profile = (await getPlayerProfile()) ?? (await getAdminUser());
     if (!profile) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
     const year = Number(new URL(request.url).searchParams.get('ano')) || undefined;
     return Response.json({ profile: { name: profile.name, nickname: profile.nickname }, stats: await loadPlayerStats(getSupabase(), profile, year) });

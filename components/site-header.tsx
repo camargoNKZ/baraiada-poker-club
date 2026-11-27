@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleDollarSign, Eye, Wallet, History, ExternalLink, Inbox, LogOut, Menu, Settings2, Trophy, Tv, UserCog, X } from 'lucide-react';
+import { CircleDollarSign, Eye, Wallet, History, ExternalLink, Inbox, LogOut, Menu, Settings2, BarChart3, Trophy, Tv, UserCog, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -16,13 +16,14 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/controle/admins', label: 'Equipe', icon: UserCog, requires: 'admin' as const },
   { href: '/controle/historico', label: 'Histórico', icon: History, requires: 'admin' as const },
   { href: '/controle/meu-jogo', label: 'Meu Jogo', icon: CircleDollarSign },
+  { href: '/controle/minha-area', label: 'Minha área', icon: BarChart3 },
   { href: '/ranking', label: 'Ranking', icon: Trophy, external: true },
   { href: '/painel', label: 'Painel', icon: Tv, external: true },
 ];
 
 const VIEW_LABEL: Record<ViewAs, string> = { admin: 'Administrador', dealer: 'Dealer', financeiro: 'Financeiro' };
 // Telas que existem para todos os cargos: dá para navegar entre elas mantendo o "Ver como".
-const PREVIEW_PAGES = ['/controle', '/controle/solicitacoes', '/controle/fechamento', '/controle/meu-jogo'];
+const PREVIEW_PAGES = ['/controle', '/controle/solicitacoes', '/controle/fechamento', '/controle/meu-jogo', '/controle/minha-area'];
 
 export function SiteHeader({ adminEmail, permissions, viewAs = 'admin', canPreview = false }: { adminEmail?: string; permissions?: Permissions; viewAs?: ViewAs; canPreview?: boolean } = {}) {
   const navItems = NAV_ITEMS.filter((item) => !item.requires || permissions?.[item.requires]);
