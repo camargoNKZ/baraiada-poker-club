@@ -1,4 +1,4 @@
-import { type BlindLevel, niceAbove } from '@/lib/blinds';
+import type { BlindLevel } from '@/lib/blinds';
 
 // Sugestão de estrutura pela duração desejada, seguindo as práticas usuais de torneios (WSOP/WPT e guias de home game):
 // - stack inicial em big blinds conforme a duração: turbo ~50, padrão ~100, deep ~125, main ~150;
@@ -13,7 +13,7 @@ export type Suggestion = {
   levels: BlindLevel[];
   levelMinutes: number; levelsPerBreak: number; breakMinutes: number;
   plannedLevels: number; startBlinds: string; endBlinds: string; increasePercent: number; totalChips: number;
-  depthBB: number; depth: DepthRange; chips: { value: number; count: number }[]; addon: { min: number; max: number };
+  depthBB: number; depth: DepthRange; recommendedStack: number; chips: { value: number; count: number }[]; addon: { min: number; max: number };
 };
 
 export type DepthRange = { label: string; target: number; min: number; max: number };
@@ -26,12 +26,21 @@ export function recommendedDepth(hours: number): DepthRange {
   return { label: 'main event', target: 150, min: 150, max: 200 };
 }
 
-const START_BIGS = [50, 100, 150, 200, 300, 400, 500, 600, 800, 1000, 1500, 2000, 3000, 4000, 5000];
-const CHIP_VALUES = [1, 5, 25, 100, 500, 1000, 5000, 25000, 100000];
+// Fichas do clube: 100, 500, 1.000, 5.000, 25.000 e 100.000.
+// Por isso o small blind é sempre múltiplo de 100 e o big blind, múltiplo de 200.
+const CHIP_VALUES = [100, 500, 1000, 5000, 25000, 100000];
+const BIG_LADDER = [200, 400, 600, 800, 1000, 1200, 1600, 2000, 2400, 3000, 4000, 5000, 6000, 8000, 10000, 12000, 16000, 20000, 24000, 30000, 40000, 50000, 60000, 80000, 100000, 120000, 160000, 200000, 240000, 300000, 400000, 500000, 600000, 800000, 1000000];
+const START_BIGS = BIG_LADDER.slice(0, 12);
+// Próximo big blind da escada: o mais próximo do alvo, sempre maior que o anterior.
+function nextBig(target: number, previous: number) {
+  const options = BIG_LADDER.filter((v) => v > previous);
+  if (!options.length) return previous * 2;
+  return options.reduce((best, v) => Math.abs(v - target) < Math.abs(best - target) ? v : best, options[0]);
+}
 
 // Fichas por jogador em 4 cores: a menor cobre o small blind inicial; poucas fichas pequenas, mais das grandes.
 export function chipDistribution(stack: number, small: number, big: number) {
-  const base = [...CHIP_VALUES].reverse().find((v) => v <= small && small % v === 0 && big % v === 0 && stack % v === 0) ?? 1;
+  const base = [...CHIP_VALUES].reverse().find((v) => v <= small && small % v === 0 && big % v === 0 && stack % v === 0) ?? CHIP_VALUES[0];
   const values = CHIP_VALUES.filter((v) => v >= base).slice(0, 4);
   const [d1, d2, d3, d4] = values;
   const counts = values.map(() => 0);
@@ -58,7 +67,7 @@ const EXTRA_LEVELS = 3;
 export function suggestStructure(input: SuggestInput): Suggestion {
   const hours = Math.max(1, Math.min(12, Number(input.hours) || 3));
   const players = Math.max(2, Math.min(500, Math.round(Number(input.players)) || 10));
-  const stack = Math.max(100, Math.round(Number(input.stack)) || 20000);
+  const stack = Math.max(1000, Math.round((Number(input.stack) || 20000) / 100) * 100);
   const rebuyFactor = Math.max(1, Number(input.rebuyFactor) || 1.5);
   const totalMinutes = hours * 60;
 
@@ -91,7 +100,7 @@ export function suggestStructure(input: SuggestInput): Suggestion {
   let breakCount = 0;
   const total = plannedLevels + EXTRA_LEVELS;
   for (let n = 1; n <= total; n += 1) {
-    if (n > 1) big = niceAbove(big * factor, big);
+    if (n > 1) big = nextBig(big * factor, big);
     const small = Math.round(big / 2);
     levels.push({ id: `nivel-${n}`, kind: 'level', smallBlind: small, bigBlind: big, ante: n >= ANTE_FROM_LEVEL ? big : 0, durationMinutes: levelMinutes });
     if (n % levelsPerBreak === 0 && n < total) {
@@ -105,7 +114,9 @@ export function suggestStructure(input: SuggestInput): Suggestion {
     levels, levelMinutes, levelsPerBreak, breakMinutes, plannedLevels,
     startBlinds: `${playLevels[0].smallBlind}/${playLevels[0].bigBlind}`, endBlinds: `${end.smallBlind}/${end.bigBlind}`,
     increasePercent: Math.round((factor - 1) * 100), totalChips,
-    depthBB: Math.round(stack / startBig), depth, chips: chipDistribution(stack, playLevels[0].smallBlind, playLevels[0].bigBlind),
+    depthBB: Math.round(stack / startBig), depth,
+    // Com small blind mínimo de 100, o stack ideal é a profundidade × 200 (múltiplo de 5.000).
+    recommendedStack: Math.ceil((depth.target * BIG_LADDER[0]) / 5000) * 5000, chips: chipDistribution(stack, playLevels[0].smallBlind, playLevels[0].bigBlind),
     addon: { min: Math.round(stack / 2), max: stack },
   };
 }
