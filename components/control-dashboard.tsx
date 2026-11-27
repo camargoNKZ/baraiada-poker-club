@@ -38,7 +38,7 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
   useEffect(() => {
     const t = state?.tournament;
     if (!t) return;
-    setForm({ name: t.name, type: t.type, entryValue: String(t.entryValue / 100), reentryValue: String(t.reentryValue / 100), addonValue: String(t.addonValue / 100), payoutPlaces: String(t.payoutPlaces), levelMinutes: String(t.levelMinutes), smallBlind: String(t.smallBlind), bigBlind: String(t.bigBlind), ante: String(t.ante) });
+    setForm({ name: t.name, type: t.type, pixKey: t.pixKey ?? '', entryValue: String(t.entryValue / 100), reentryValue: String(t.reentryValue / 100), addonValue: String(t.addonValue / 100), payoutPlaces: String(t.payoutPlaces), levelMinutes: String(t.levelMinutes), smallBlind: String(t.smallBlind), bigBlind: String(t.bigBlind), ante: String(t.ante) });
     setPercentages(payoutPercentagesOf(t).map(String));
     setRake({ enabled: t.rakeEnabled, percent: t.rakePercent ? String(t.rakePercent) : '' });
   }, [state?.tournament?.updatedAt]);
@@ -185,6 +185,7 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
             <label className={`sm:col-span-2 ${labelClass}`}>Nome do torneio<input className={fieldClass} value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
             <label className={labelClass}>Tipo<select className={fieldClass} value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })}><option>Freezeout</option><option>Reentrada limitada</option><option>Reentrada ilimitada</option><option>Progressive Knockout</option><option>Satélite</option></select></label>
             {[['entryValue', 'Entrada padrão (R$)'], ['reentryValue', 'Reentrada padrão (R$)'], ['addonValue', 'Add-on padrão (R$)']].map(([key, label]) => <label key={key} className={labelClass}>{label}<input min="0" type="number" className={fieldClass} value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>)}
+            <label className={`sm:col-span-2 lg:col-span-3 ${labelClass}`}>Chave Pix para receber os pagamentos<input placeholder="CPF, telefone, e-mail ou chave aleatória" maxLength={140} className={fieldClass} value={form.pixKey || ''} onChange={(e) => setForm({ ...form, pixKey: e.target.value })} /></label>
           </div>
           <div className="mt-6 border-t border-white/8 pt-5">
             <div className="flex flex-wrap items-center justify-between gap-3">

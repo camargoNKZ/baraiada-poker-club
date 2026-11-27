@@ -13,7 +13,7 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak, entryOpen: clockFromRow(row).entryOpen, rebuyOpen: clockFromRow(row).rebuyOpen, addonOpen: clockFromRow(row).addonOpen };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak, entryOpen: clockFromRow(row).entryOpen, rebuyOpen: clockFromRow(row).rebuyOpen, addonOpen: clockFromRow(row).addonOpen, pixKey: (row.pix_key as string) ?? '' };
 }
 
 function playerFromRow(row: Row) {
@@ -37,7 +37,7 @@ async function ensurePlayerProfile(db: Db, admin: { id: string; name: string; ni
 }
 
 async function buildSelfState(db: Db, admin: { id: string; name: string; nickname: string; phone: string; email: string }) {
-  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes, rake_enabled, rake_percent').eq('status', 'active').maybeSingle();
+  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes, rake_enabled, rake_percent, pix_key').eq('status', 'active').maybeSingle();
   if (tournamentResult.error) throw tournamentResult.error;
   const tournamentRow = tournamentResult.data;
   const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, admin.id), supportRoleLabel(db, admin.id)]);

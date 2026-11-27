@@ -1,12 +1,13 @@
 'use client';
 
+import { PaymentAlert, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { CircleDollarSign, Copy, Flag, LoaderCircle, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { money } from '@/lib/tournament';
 
-type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean; entryOpen: boolean; rebuyOpen: boolean; addonOpen: boolean };
+type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean; entryOpen: boolean; rebuyOpen: boolean; addonOpen: boolean; pixKey: string };
 type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
 type Accounting = { charged: number; paid: number; balance: number };
 type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: number; createdAt: number };
@@ -92,6 +93,7 @@ export function AdminSelfPlay() {
         <div className="panel rounded-[22px] border border-[#c9a45a]/20 px-6 py-12 text-center text-sm text-[#a48e6a]">Nenhum torneio ativo no momento.</div>
       ) : (
         <>
+          {state.player && state.accounting && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
           <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>

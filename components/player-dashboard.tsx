@@ -1,5 +1,6 @@
 'use client';
 
+import { PaymentAlert, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { CircleDollarSign, Clock3, ExternalLink, Flag, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -9,7 +10,7 @@ import { getSupabaseBrowser } from '@/lib/supabase-browser';
 import { money } from '@/lib/tournament';
 import type { PlayerProfile } from '@/lib/player-auth';
 
-type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean; entryOpen: boolean; rebuyOpen: boolean; addonOpen: boolean };
+type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean; entryOpen: boolean; rebuyOpen: boolean; addonOpen: boolean; pixKey: string };
 type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
 type PlayerRequest = { id: number; kind: string; quantity: number; status: string; note: string; requestedAt: number; resolvedAt: number | null };
 type Accounting = { charged: number; paid: number; balance: number };
@@ -97,6 +98,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
           </div>
         ) : (
           <>
+            {state.player && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
             <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>
