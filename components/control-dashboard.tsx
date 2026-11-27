@@ -8,7 +8,7 @@ import type { Permissions } from '@/lib/admin-auth';
 import { BlindStructureEditor } from '@/components/blind-structure-editor';
 import { TournamentClock, useNow } from '@/components/tournament-clock';
 import { clockAt, levelsOf } from '@/lib/blinds';
-import { defaultPercentages, money, payoutPercentagesOf, payouts, percentagesTotal, playerAccounting, prizePool } from '@/lib/tournament';
+import { defaultPercentages, money, netPrizePool, payoutPercentagesOf, rakeAmount, payouts, percentagesTotal, playerAccounting, prizePool } from '@/lib/tournament';
 
 const fieldClass = 'mt-2 h-11 w-full rounded-xl border border-white/10 bg-[#081f18] px-3 text-sm text-white outline-none placeholder:text-[#526960] focus:border-[#d7b66a]/60';
 const labelClass = 'text-[10px] font-bold uppercase tracking-[0.13em] text-[#789087]';
@@ -33,19 +33,26 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [finishOrder, setFinishOrder] = useState<number[] | null>(null);
   const [percentages, setPercentages] = useState<string[]>([]);
+  const [rake, setRake] = useState({ enabled: false, percent: '' });
 
   useEffect(() => {
     const t = state?.tournament;
     if (!t) return;
     setForm({ name: t.name, type: t.type, entryValue: String(t.entryValue / 100), reentryValue: String(t.reentryValue / 100), addonValue: String(t.addonValue / 100), payoutPlaces: String(t.payoutPlaces), levelMinutes: String(t.levelMinutes), smallBlind: String(t.smallBlind), bigBlind: String(t.bigBlind), ante: String(t.ante) });
     setPercentages(payoutPercentagesOf(t).map(String));
+    setRake({ enabled: t.rakeEnabled, percent: t.rakePercent ? String(t.rakePercent) : '' });
   }, [state?.tournament?.updatedAt]);
 
   const activeTransactions = state?.transactions.filter((item) => !item.voidedAt) ?? [];
   const charged = activeTransactions.filter((item) => item.totalAmount > 0).reduce((sum, item) => sum + item.totalAmount, 0);
   const received = Math.abs(activeTransactions.filter((item) => item.kind === 'payment').reduce((sum, item) => sum + item.totalAmount, 0));
   const pending = charged - received;
-  const pool = useMemo(() => state?.tournament ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
+  // Total arrecadado; a premiação é esse valor menos o rake (o que está sendo editado, para o admin ver antes de salvar).
+  const grossPool = useMemo(() => state?.tournament ? prizePool(state.tournament, state.players, state.transactions) : 0, [state]);
+  const rakeSettings = can.admin ? { rakeEnabled: rake.enabled, rakePercent: Number(rake.percent) || 0 } : (state?.tournament ?? { rakeEnabled: false, rakePercent: 0 });
+  const rakeValue = rakeAmount(grossPool, rakeSettings);
+  const pool = netPrizePool(grossPool, rakeSettings);
+  const rakeOk = !rake.enabled || (Number(rake.percent) > 0 && Number(rake.percent) <= 50);
   // Premiação: percentuais em edição (admin) ou os salvos no torneio.
   const percentNumbers = percentages.map((value) => Number(value) || 0);
   const percentSum = percentagesTotal(percentNumbers);
@@ -61,8 +68,8 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
 
   async function saveSettings(event: FormEvent) {
     event.preventDefault();
-    if (!percentOk) return;
-    await mutate({ action: 'updateTournament', ...form, entryValue: Math.round(Number(form.entryValue) * 100), reentryValue: Math.round(Number(form.reentryValue) * 100), addonValue: Math.round(Number(form.addonValue) * 100), payoutPlaces: percentNumbers.length, payoutPercentages: percentNumbers });
+    if (!percentOk || !rakeOk) return;
+    await mutate({ action: 'updateTournament', ...form, entryValue: Math.round(Number(form.entryValue) * 100), reentryValue: Math.round(Number(form.reentryValue) * 100), addonValue: Math.round(Number(form.addonValue) * 100), payoutPlaces: percentNumbers.length, payoutPercentages: percentNumbers, rakeEnabled: rake.enabled, rakePercent: rake.enabled ? Number(rake.percent) : 0 });
   }
 
   async function addPlayer(event: FormEvent) {
@@ -173,11 +180,22 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
 
       <section className={`grid gap-4 ${can.admin ? 'xl:grid-cols-[1.25fr_.75fr]' : ''}`}>
         {can.admin && <form onSubmit={saveSettings} className="panel rounded-[22px] border border-white/8 p-5 sm:p-6">
-          <div className="mb-5 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Configuração do torneio</h2><p className="mt-1 text-xs text-[#718a81]">Valores padrão usados nos novos lançamentos</p></div><Button type="submit" disabled={saving || !percentOk} className="h-9 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><Save className="size-4" /> Salvar</Button></div>
+          <div className="mb-5 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Configuração do torneio</h2><p className="mt-1 text-xs text-[#718a81]">Valores padrão usados nos novos lançamentos</p></div><Button type="submit" disabled={saving || !percentOk || !rakeOk} className="h-9 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><Save className="size-4" /> Salvar</Button></div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className={`sm:col-span-2 ${labelClass}`}>Nome do torneio<input className={fieldClass} value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
             <label className={labelClass}>Tipo<select className={fieldClass} value={form.type || ''} onChange={(e) => setForm({ ...form, type: e.target.value })}><option>Freezeout</option><option>Reentrada limitada</option><option>Reentrada ilimitada</option><option>Progressive Knockout</option><option>Satélite</option></select></label>
             {[['entryValue', 'Entrada padrão (R$)'], ['reentryValue', 'Reentrada padrão (R$)'], ['addonValue', 'Add-on padrão (R$)']].map(([key, label]) => <label key={key} className={labelClass}>{label}<input min="0" type="number" className={fieldClass} value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>)}
+          </div>
+          <div className="mt-6 border-t border-white/8 pt-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h3 className="text-sm font-semibold text-white">Rake</h3><p className="mt-1 text-xs text-[#718a81]">Percentual descontado do total arrecadado antes da premiação. O valor é arredondado para reais terminados em 0 ou 5.</p></div>
+              <div className="flex items-center gap-3">
+                <button type="button" role="switch" aria-checked={rake.enabled} aria-label="Descontar rake" onClick={() => setRake({ ...rake, enabled: !rake.enabled })} className={`relative h-7 w-12 shrink-0 rounded-full border transition ${rake.enabled ? 'border-[#d7b66a] bg-[#d7b66a]' : 'border-white/15 bg-white/10'}`}><span className={`absolute top-0.5 size-[22px] rounded-full bg-[#0d0c0a] shadow transition-all ${rake.enabled ? 'left-[22px]' : 'left-0.5'}`} /></button>
+                <span className="text-xs font-semibold text-[#c7d2cd]">{rake.enabled ? 'Descontar rake' : 'Sem rake'}</span>
+                {rake.enabled && <label className="flex items-center gap-1"><input aria-label="Percentual do rake" type="number" min="0.5" max="50" step="0.5" value={rake.percent} onChange={(e) => setRake({ ...rake, percent: e.target.value })} className="h-9 w-20 rounded-lg border border-white/10 bg-[#081f18] px-2 text-right font-mono text-sm text-white outline-none focus:border-[#d7b66a]/60" /><span className="text-xs text-[#789087]">%</span></label>}
+              </div>
+            </div>
+            {rake.enabled && <p className={`mt-2 text-xs ${rakeOk ? 'text-[#8da79e]' : 'text-[#e5a0a0]'}`}>{rakeOk ? `Hoje: ${money(grossPool)} arrecadado − ${money(rakeValue)} de rake = ${money(pool)} de premiação.` : 'Informe um percentual entre 0,5% e 50%.'}</p>}
           </div>
           <div className="mt-6 border-t border-white/8 pt-5">
             <div className="flex flex-wrap items-end justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">Divisão da premiação</h3><p className="mt-1 text-xs text-[#718a81]">Percentual do prêmio para cada posição. Precisa somar 100%. Os valores são arredondados para reais terminados em 0 ou 5.</p>{pool % 500 !== 0 && <p className="mt-1 text-xs text-[#e3c578]">O prêmio atual ({money(pool)}) não é múltiplo de R$ 5: a diferença fica com o 1º lugar.</p>}</div>
@@ -188,7 +206,7 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
           
         </form>}
 
-        <article className="felt-card rounded-[22px] border border-white/9 p-5 sm:p-6"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">Premiação projetada</p><h2 className="mt-2 text-xl font-semibold text-white">{money(pool)} em prêmios</h2><p className="mt-1 text-xs text-[#83a397]">Calculada pelos valores efetivamente lançados.</p><div className="mt-5 space-y-2">{awards.map((value, index) => <div key={index} className="flex items-center gap-3 rounded-xl border border-white/7 bg-black/10 px-4 py-3"><span className={`grid size-7 place-items-center rounded-full text-xs font-bold ${index < 3 ? 'bg-[#d7b66a] text-[#14251e]' : 'bg-white/7 text-[#9ab0a8]'}`}>{index + 1}º</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/20"><div className="h-full rounded-full bg-[#d7b66a]/75" style={{ width: `${pool ? (value / pool) * 100 : 0}%` }} /></div><strong className="w-24 text-right font-mono text-sm text-white">{money(value)}</strong></div>)}</div></article>
+        <article className="felt-card rounded-[22px] border border-white/9 p-5 sm:p-6"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">Premiação projetada</p><h2 className="mt-2 text-xl font-semibold text-white">{money(pool)} em prêmios</h2><p className="mt-1 text-xs text-[#83a397]">{rakeValue ? `${money(grossPool)} arrecadado − ${money(rakeValue)} de rake (${rakeSettings.rakePercent}%).` : 'Calculada pelos valores efetivamente lançados, sem rake.'}</p><div className="mt-5 space-y-2">{awards.map((value, index) => <div key={index} className="flex items-center gap-3 rounded-xl border border-white/7 bg-black/10 px-4 py-3"><span className={`grid size-7 place-items-center rounded-full text-xs font-bold ${index < 3 ? 'bg-[#d7b66a] text-[#14251e]' : 'bg-white/7 text-[#9ab0a8]'}`}>{index + 1}º</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/20"><div className="h-full rounded-full bg-[#d7b66a]/75" style={{ width: `${pool ? (value / pool) * 100 : 0}%` }} /></div><strong className="w-24 text-right font-mono text-sm text-white">{money(value)}</strong></div>)}</div></article>
       </section>
 
       <section className="panel mt-4 rounded-[22px] border border-white/8">

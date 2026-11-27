@@ -7,6 +7,7 @@ export type Tournament = {
   bigBlind: number; ante: number; timerStartedAt: number | null; timerPausedSeconds: number; updatedAt: number;
   blindLevels: BlindLevel[]; alertAudioPath: string;
   payoutPercentages: number[]; // % do prêmio por posição; vazio = divisão padrão
+  rakeEnabled: boolean; rakePercent: number; // rake descontado do total antes da premiação
   status: 'active' | 'finished'; finishedAt: number | null; currentLevel: number;
   lastEliminationName: string; lastEliminationAt: number | null; lastEliminationMessage: string;
 };
@@ -36,12 +37,24 @@ export const defaultTournament: Tournament = {
   timerStartedAt: null, timerPausedSeconds: 20 * 60, updatedAt: Date.now(),
   status: 'active', finishedAt: null, currentLevel: 0,
   lastEliminationName: '', lastEliminationAt: null, lastEliminationMessage: '',
-  payoutPercentages: [], blindLevels: generateStructure(defaultGeneratorOptions), alertAudioPath: 'blind-alert-4bb4b357-141c-4962-8eff-15ad9a484c4a.ogg',
+  payoutPercentages: [], rakeEnabled: false, rakePercent: 0, blindLevels: generateStructure(defaultGeneratorOptions), alertAudioPath: 'blind-alert-4bb4b357-141c-4962-8eff-15ad9a484c4a.ogg',
 };
 
 export function prizePool(tournament: Tournament, players: Player[], transactions?: FinancialTransaction[]) {
   if (transactions) return transactions.filter((item) => !item.voidedAt && ['entry', 'reentry', 'addon'].includes(item.kind)).reduce((sum, item) => sum + item.totalAmount, 0);
   return players.reduce((total, player) => total + player.entries * tournament.entryValue + player.reentries * tournament.reentryValue + player.addons * tournament.addonValue, 0);
+}
+
+// Rake: percentual do total arrecadado, arredondado para o múltiplo de R$ 5 mais próximo.
+export function rakeAmount(gross: number, tournament: Pick<Tournament, 'rakeEnabled' | 'rakePercent'>) {
+  if (!tournament.rakeEnabled || !(Number(tournament.rakePercent) > 0)) return 0;
+  const raw = (Math.max(0, gross) * Number(tournament.rakePercent)) / 100;
+  return Math.min(Math.max(0, gross), Math.round(raw / PRIZE_STEP_CENTS) * PRIZE_STEP_CENTS);
+}
+
+// Premiação a dividir: total arrecadado menos o rake (se ligado).
+export function netPrizePool(gross: number, tournament: Pick<Tournament, 'rakeEnabled' | 'rakePercent'>) {
+  return Math.max(0, gross) - rakeAmount(gross, tournament);
 }
 
 export function playerAccounting(playerId: number, transactions: FinancialTransaction[]) {

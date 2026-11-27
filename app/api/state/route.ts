@@ -4,7 +4,7 @@ import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-a
 import { clampIndex, clockAt, levelsOf, purchaseBlockedReason, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
-import { defaultTournament, payouts, pointsForPosition, prizePool, validPercentages } from '@/lib/tournament';
+import { defaultTournament, payouts, pointsForPosition, prizePool, rakeAmount, validPercentages } from '@/lib/tournament';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,11 +12,11 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, blindLevels: Array.isArray(row.blind_levels) ? row.blind_levels : [], payoutPercentages: Array.isArray(row.payout_percentages) ? row.payout_percentages.map(Number) : [], alertAudioPath: row.alert_audio_path ?? '', updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at, currentLevel: row.current_level ?? 0, lastEliminationName: row.last_elimination_name ?? '', lastEliminationAt: row.last_elimination_at ?? null, lastEliminationMessage: row.last_elimination_message ?? '' };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, levelMinutes: row.level_minutes, smallBlind: row.small_blind, bigBlind: row.big_blind, ante: row.ante, timerStartedAt: row.timer_started_at, timerPausedSeconds: row.timer_paused_seconds, blindLevels: Array.isArray(row.blind_levels) ? row.blind_levels : [], payoutPercentages: Array.isArray(row.payout_percentages) ? row.payout_percentages.map(Number) : [], rakeEnabled: Boolean(row.rake_enabled), rakePercent: Number(row.rake_percent ?? 0), alertAudioPath: row.alert_audio_path ?? '', updatedAt: row.updated_at, status: row.status, finishedAt: row.finished_at, currentLevel: row.current_level ?? 0, lastEliminationName: row.last_elimination_name ?? '', lastEliminationAt: row.last_elimination_at ?? null, lastEliminationMessage: row.last_elimination_message ?? '' };
 }
 
 function tournamentToRow(row: typeof defaultTournament) {
-  return { blind_levels: row.blindLevels, alert_audio_path: row.alertAudioPath, payout_percentages: row.payoutPercentages, name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
+  return { blind_levels: row.blindLevels, alert_audio_path: row.alertAudioPath, payout_percentages: row.payoutPercentages, rake_enabled: row.rakeEnabled, rake_percent: row.rakePercent, name: row.name, type: row.type, entry_value: row.entryValue, reentry_value: row.reentryValue, addon_value: row.addonValue, payout_places: row.payoutPlaces, level_minutes: row.levelMinutes, small_blind: row.smallBlind, big_blind: row.bigBlind, ante: row.ante, timer_started_at: row.timerStartedAt, timer_paused_seconds: row.timerPausedSeconds, updated_at: row.updatedAt };
 }
 
 function playerFromRow(row: Row) {
@@ -47,7 +47,7 @@ async function lastTournamentTemplate(db: Db) {
   if (!last.data) return tournamentToRow({ ...defaultTournament, updatedAt: Date.now() });
   const row = last.data;
   const levels = levelsOf(tournamentFromRow(row));
-  return { name: row.name, type: row.type, entry_value: row.entry_value, reentry_value: row.reentry_value, addon_value: row.addon_value, payout_places: row.payout_places, payout_percentages: row.payout_percentages ?? [], level_minutes: row.level_minutes, small_blind: row.small_blind, big_blind: row.big_blind, ante: row.ante, blind_levels: row.blind_levels ?? [], alert_audio_path: row.alert_audio_path ?? '', purchase_options: row.purchase_options, timer_started_at: null, timer_paused_seconds: levels[0].durationMinutes * 60, current_level: 0, updated_at: Date.now() };
+  return { name: row.name, type: row.type, entry_value: row.entry_value, reentry_value: row.reentry_value, addon_value: row.addon_value, payout_places: row.payout_places, payout_percentages: row.payout_percentages ?? [], rake_enabled: Boolean(row.rake_enabled), rake_percent: Number(row.rake_percent ?? 0), level_minutes: row.level_minutes, small_blind: row.small_blind, big_blind: row.big_blind, ante: row.ante, blind_levels: row.blind_levels ?? [], alert_audio_path: row.alert_audio_path ?? '', purchase_options: row.purchase_options, timer_started_at: null, timer_paused_seconds: levels[0].durationMinutes * 60, current_level: 0, updated_at: Date.now() };
 }
 
 async function loadActiveTournamentRow(db: Db) {
@@ -120,7 +120,8 @@ export async function POST(request: Request) {
     const current = tournamentFromRow(activeRow);
 
     if (action === 'updateTournament') {
-      const values = { name: String(body.name || current.name), type: String(body.type || current.type), entry_value: Math.max(0, Math.round(Number(body.entryValue) || 0)), reentry_value: Math.max(0, Math.round(Number(body.reentryValue) || 0)), addon_value: Math.max(0, Math.round(Number(body.addonValue) || 0)), payout_places: Math.max(1, Math.min(20, Number(body.payoutPlaces) || 1)), payout_percentages: [] as number[], updated_at: Date.now() };
+      const values = { name: String(body.name || current.name), type: String(body.type || current.type), entry_value: Math.max(0, Math.round(Number(body.entryValue) || 0)), reentry_value: Math.max(0, Math.round(Number(body.reentryValue) || 0)), addon_value: Math.max(0, Math.round(Number(body.addonValue) || 0)), payout_places: Math.max(1, Math.min(20, Number(body.payoutPlaces) || 1)), payout_percentages: [] as number[], rake_enabled: Boolean(body.rakeEnabled), rake_percent: Math.max(0, Math.min(50, Math.round(Number(body.rakePercent) * 100) / 100 || 0)), updated_at: Date.now() };
+      if (values.rake_enabled && !(values.rake_percent > 0)) return Response.json({ error: 'Informe o percentual do rake (maior que 0 e até 50%).' }, { status: 400 });
       // Percentuais por posição: precisam somar 100%. Lista vazia = divisão padrão.
       if (Array.isArray(body.payoutPercentages) && body.payoutPercentages.length) {
         const percentages = body.payoutPercentages.map((value) => Math.round(Number(value) * 100) / 100);
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
         values.payout_places = percentages.length;
       }
       const result = await db.from('tournaments').update(values).eq('id', current.id); if (result.error) throw result.error;
-      audit = { tournamentId: current.id, action: 'updateTournament', summary: `Alterou a configuração do torneio: entrada ${brl(values.entry_value)}, reentrada ${brl(values.reentry_value)}, add-on ${brl(values.addon_value)}, ${values.payout_places} lugares premiados${values.payout_percentages.length ? ` (${values.payout_percentages.join(' / ')}%)` : ' (divisão padrão)'}`, details: { before: { entryValue: current.entryValue, reentryValue: current.reentryValue, addonValue: current.addonValue, payoutPlaces: current.payoutPlaces, payoutPercentages: current.payoutPercentages }, after: values } };
+      audit = { tournamentId: current.id, action: 'updateTournament', summary: `Alterou a configuração do torneio: entrada ${brl(values.entry_value)}, reentrada ${brl(values.reentry_value)}, add-on ${brl(values.addon_value)}, ${values.payout_places} lugares premiados${values.payout_percentages.length ? ` (${values.payout_percentages.join(' / ')}%)` : ' (divisão padrão)'}, ${values.rake_enabled ? `rake de ${values.rake_percent}%` : 'sem rake'}`, details: { before: { entryValue: current.entryValue, reentryValue: current.reentryValue, addonValue: current.addonValue, payoutPlaces: current.payoutPlaces, payoutPercentages: current.payoutPercentages }, after: values } };
     } else if (action === 'saveBlindStructure') {
       const levels = sanitizeStructure(body.levels);
       if (!levels.some((item) => item.kind === 'level')) return Response.json({ error: 'A estrutura precisa ter pelo menos um nível de jogo.' }, { status: 400 });
@@ -207,7 +208,10 @@ export async function POST(request: Request) {
       const ranked = [...standing.sort((a, b) => (orderIndex.get(Number(a.id)) ?? 0) - (orderIndex.get(Number(b.id)) ?? 0)), ...eliminated];
       // Prêmio = o que foi efetivamente lançado (já com descontos e sem estornos), igual ao que a tela mostra.
       const txResult = await db.from('financial_transactions').select('*').eq('tournament_id', current.id); if (txResult.error) throw txResult.error;
-      const pool = prizePool(current, [], (txResult.data ?? []).map(transactionFromRow));
+      // Prêmio = total arrecadado menos o rake (se ligado).
+      const gross = prizePool(current, [], (txResult.data ?? []).map(transactionFromRow));
+      const rake = rakeAmount(gross, current);
+      const pool = gross - rake;
       const prizeList = payouts(pool, current);
       const resultsRows = ranked.map((p, index) => {
         const eligible = p.status === 'active' || Boolean(p.self_eliminated);
@@ -216,7 +220,7 @@ export async function POST(request: Request) {
       // Fecha o torneio e grava os resultados juntos; um segundo clique é recusado pelo banco.
       const { error } = await db.rpc('finish_tournament', { p_tournament_id: current.id, p_results: resultsRows });
       throwIfError(error);
-      audit = { tournamentId: current.id, action: 'finishTournament', summary: `Encerrou o torneio “${current.name}”: campeão ${resultsRows[0]?.player_name ?? '—'}, prêmio total ${brl(pool)}`, details: { results: resultsRows, pool } };
+      audit = { tournamentId: current.id, action: 'finishTournament', summary: `Encerrou o torneio “${current.name}”: campeão ${resultsRows[0]?.player_name ?? '—'}, prêmio total ${brl(pool)}${rake ? ` (rake de ${brl(rake)} descontado)` : ''}`, details: { results: resultsRows, gross, rake, pool } };
     }
 
     return respond();
