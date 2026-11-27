@@ -3,7 +3,7 @@
 import { MyPrizes, type PrizeItem } from '@/components/my-prizes';
 import { AddonPrompt, type ClaimStatus, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
-import { CircleDollarSign, Clock3, ExternalLink, Flag, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
+import { BarChart3, CircleDollarSign, Clock3, ExternalLink, Flag, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -95,7 +95,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
           </div>
           <div className="flex items-center gap-2">
             <a href="/painel" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Tv className="size-3.5" /> Painel <ExternalLink className="size-3" /></a>
-            <a href="/ranking" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Trophy className="size-3.5" /> Ranking <ExternalLink className="size-3" /></a>
+            <a href="/minha-area" className="flex items-center gap-1.5 rounded-full border border-[#c9a45a]/40 bg-[#c9a45a]/10 px-3 py-2 text-xs font-semibold text-[#f0e1b5] hover:bg-[#c9a45a]/20"><BarChart3 className="size-3.5" /> Minha área</a><a href="/ranking" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Trophy className="size-3.5" /> Ranking <ExternalLink className="size-3" /></a>
             <button onClick={logout} className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><LogOut className="size-3.5" /> Sair</button>
           </div>
         </header>
