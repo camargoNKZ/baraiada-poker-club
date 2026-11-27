@@ -1,5 +1,6 @@
 import { getPlayerProfile } from '@/lib/player-auth';
 import { getSupabase } from '@/lib/supabase-server';
+import { latestClaim, playerPrizes } from '@/lib/player-money';
 import { clockFromRow } from '@/lib/blinds';
 import { isSupportProfile, supportDiscountFor, supportRoleLabel } from '@/lib/dealer-discount';
 import { playerAccounting, netPrizePool, prizePool } from '@/lib/tournament';
@@ -79,6 +80,8 @@ export async function GET() {
       accounting,
       extract: extract.map((item) => ({ id: item.id, kind: kindLabel[item.kind] ?? item.kind, quantity: item.quantity, totalAmount: item.totalAmount, createdAt: item.createdAt })),
       pool,
+      paymentClaim: await latestClaim(db, player?.id ?? null),
+      prizes: await playerPrizes(db, profile.id),
     });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : 'Erro ao carregar dados.' }, { status: 500 });

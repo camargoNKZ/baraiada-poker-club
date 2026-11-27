@@ -1,6 +1,7 @@
 'use client';
 
-import { AddonPrompt, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
+import { MyPrizes, type PrizeItem } from '@/components/my-prizes';
+import { AddonPrompt, type ClaimStatus, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { CircleDollarSign, Copy, Flag, LoaderCircle, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -22,6 +23,8 @@ type SelfState = {
   accounting?: Accounting;
   extract?: ExtractItem[];
   pool?: number;
+  paymentClaim?: ClaimStatus;
+  prizes?: PrizeItem[];
 };
 
 export function AdminSelfPlay() {
@@ -99,11 +102,12 @@ export function AdminSelfPlay() {
           <Button disabled={busy} onClick={linkProfile} className="mt-4 h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]">Vincular cadastro</Button>
         </div>
       ) : !state.tournament ? (
-        <div className="panel rounded-[22px] border border-[#c9a45a]/20 px-6 py-12 text-center text-sm text-[#a48e6a]">Nenhum torneio ativo no momento.</div>
+        <><MyPrizes prizes={state.prizes} /><div className="panel rounded-[22px] border border-[#c9a45a]/20 px-6 py-12 text-center text-sm text-[#a48e6a]">Nenhum torneio ativo no momento.</div></>
       ) : (
         <>
+          <MyPrizes prizes={state.prizes} />
           {state.player && shouldAskAddon({ addonOpen: state.tournament.addonOpen, status: state.player.status, entries: state.player.entries, addons: state.player.addons, addonDeclined: state.player.addonDeclined, addonPending: false }) ? <AddonPrompt addonValue={state.tournament.addonValue} busy={busy} onYes={() => launch('addon', 1)} onNo={declineAddon} /> : null}
-          {state.player && state.accounting && !shouldAskAddon({ addonOpen: state.tournament.addonOpen, status: state.player.status, entries: state.player.entries, addons: state.player.addons, addonDeclined: state.player.addonDeclined, addonPending: false }) && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
+          {state.player && state.accounting && !shouldAskAddon({ addonOpen: state.tournament.addonOpen, status: state.player.status, entries: state.player.entries, addons: state.player.addons, addonDeclined: state.player.addonDeclined, addonPending: false }) && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} claim={state.paymentClaim} onClaimed={() => void refresh()} />}
           <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Crown, Medal, Trophy } from 'lucide-react';
 
 type RankingRow = { playerName: string; points: number; prize: number; tournaments: number; wins: number; podiums: number };
-type RankingResponse = { year: number; years: number[]; ranking: RankingRow[]; tournamentsCount: number };
+type Podium = { id: number; name: string; finishedAt: number | null; photoUrl: string | null; top3: string[] };
+type RankingResponse = { year: number; years: number[]; ranking: RankingRow[]; podiums?: Podium[]; tournamentsCount: number };
 
 export function RankingBoard() {
   const [data, setData] = useState<RankingResponse | null>(null);
@@ -51,6 +52,19 @@ export function RankingBoard() {
             </table>
           </div>
         )}
+        {data?.podiums?.length ? (
+          <section className="mt-8">
+            <h2 className="mb-3 font-heading text-xl font-bold uppercase tracking-[.04em]">Pódios do ano</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {data.podiums.map((p) => (
+                <figure key={p.id} className="panel overflow-hidden rounded-[18px] border border-[#c9a45a]/20">
+                  {p.photoUrl && <img src={p.photoUrl} alt={`Top 3 de ${p.name}`} loading="lazy" className="aspect-[4/3] w-full object-cover" />}
+                  <figcaption className="p-4"><p className="font-semibold text-[#f7edcf]">{p.name}</p><p className="text-xs text-[#a48e6a]">{p.finishedAt ? new Date(p.finishedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : ''}</p><ol className="mt-2 space-y-0.5 text-sm text-[#c7ae7e]">{p.top3.map((name, i) => <li key={name + i}><span className="font-bold text-[#e3c578]">{i + 1}º</span> {name}</li>)}</ol></figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );

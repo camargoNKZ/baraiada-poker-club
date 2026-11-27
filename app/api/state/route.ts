@@ -1,5 +1,6 @@
 import { notifyTournamentChange } from '@/lib/realtime';
 import { brl, KIND_LABEL, logAction, playerName } from '@/lib/audit';
+import { balancesFor } from '@/lib/uploads';
 import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-auth';
 import { clampIndex, clockAt, levelsOf, purchaseBlockedReason, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
@@ -194,6 +195,13 @@ export async function POST(request: Request) {
     } else if (action === 'finishTournament') {
       const playersResult = await db.from('players').select('*').eq('tournament_id', current.id); if (playersResult.error) throw playersResult.error;
       const players = playersResult.data ?? [];
+      // Nunca há devedores entre torneios: só encerra com todo mundo quitado e nenhum pagamento a confirmar.
+      const balances = await balancesFor(db, current.id);
+      const debtors = players.filter((p) => (balances.get(Number(p.id)) ?? 0) > 0);
+      if (debtors.length) return Response.json({ error: `Não é possível encerrar: ${debtors.length === 1 ? 'há 1 jogador' : `há ${debtors.length} jogadores`} com saldo a pagar (${debtors.slice(0, 5).map((p) => `${p.name}: ${brl(balances.get(Number(p.id)) ?? 0)}`).join(', ')}${debtors.length > 5 ? '…' : ''}). Registre os pagamentos antes de encerrar.` }, { status: 400 });
+      const pendingClaims = await db.from('payment_claims').select('id', { count: 'exact', head: true }).eq('tournament_id', current.id).eq('status', 'pending');
+      if (pendingClaims.error) throw pendingClaims.error;
+      if ((pendingClaims.count ?? 0) > 0) return Response.json({ error: 'Não é possível encerrar: há pagamentos informados aguardando confirmação em Solicitações.' }, { status: 400 });
       const standing = players.filter((p) => p.status === 'active');
       // A ordem de quem ainda está vivo vem confirmada pelo admin (1º, 2º, ...).
       // Sem ela, só dá para encerrar se sobrou no máximo um jogador.
