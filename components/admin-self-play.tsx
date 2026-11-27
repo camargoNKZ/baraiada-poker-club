@@ -109,8 +109,8 @@ export function AdminSelfPlay() {
             <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-5">
               {!state.player || state.player.entries < 1 ? (
                 <>
-                  <Button disabled={busy || !state.tournament.entryOpen} title={state.tournament.entryOpen ? undefined : 'Entradas encerradas no início do 1º intervalo'} onClick={() => launch('entry', 1)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> {state.tournament.entryOpen ? `Entrada (${money(state.tournament.entryValue)})` : 'Entradas encerradas'}</Button>
-                  <Button disabled={busy || !state.tournament.entryOpen} title={state.tournament.entryOpen ? undefined : 'Entradas encerradas no início do 1º intervalo'} onClick={() => launch('entry', 2)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> Entrada dupla ({money(state.tournament.entryValue * 2)})</Button>
+                  <Button disabled={busy || !state.tournament.entryOpen} title={state.tournament.entryOpen ? undefined : 'Entradas encerradas no fim do 1º intervalo'} onClick={() => launch('entry', 1)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> {state.tournament.entryOpen ? `Entrada (${money(state.tournament.entryValue)})` : 'Entradas encerradas'}</Button>
+                  <Button disabled={busy || !state.tournament.entryOpen} title={state.tournament.entryOpen ? undefined : 'Entradas encerradas no fim do 1º intervalo'} onClick={() => launch('entry', 2)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> Entrada dupla ({money(state.tournament.entryValue * 2)})</Button>
                 </>
               ) : (
                 <>

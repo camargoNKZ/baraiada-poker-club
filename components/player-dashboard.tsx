@@ -108,7 +108,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                 ) : (
                   <div className="mt-5">
                     <p className="mb-3 text-xs text-[#789087]">Você ainda não está inscrito neste torneio.</p>
-                    <Button disabled={sending || !state.tournament.entryOpen} onClick={() => sendRequest('register')} className="h-11 bg-[#d7b66a] px-5 font-bold text-[#14251e] hover:bg-[#e5c779]"><UserPlus className="size-4" /> {state.tournament.entryOpen ? 'Inscrever-se no torneio' : 'Inscrições encerradas (início do 1º intervalo)'}</Button>
+                    <Button disabled={sending || !state.tournament.entryOpen} onClick={() => sendRequest('register')} className="h-11 bg-[#d7b66a] px-5 font-bold text-[#14251e] hover:bg-[#e5c779]"><UserPlus className="size-4" /> {state.tournament.entryOpen ? 'Inscrever-se no torneio' : 'Inscrições encerradas (fim do 1º intervalo)'}</Button>
                   </div>
                 )
               ) : (
@@ -120,7 +120,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                   </div>
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-5">
                     {state.player.entries < 1 ? (
-                      <Button disabled={sending || pendingKinds.has('entry') || !state.tournament.entryOpen} onClick={() => sendRequest('entry')} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> {!state.tournament.entryOpen ? 'Entradas encerradas (início do 1º intervalo)' : pendingKinds.has('entry') ? 'Entrada solicitada' : `Solicitar entrada (${money(state.tournament.entryValue)})`}</Button>
+                      <Button disabled={sending || pendingKinds.has('entry') || !state.tournament.entryOpen} onClick={() => sendRequest('entry')} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> {!state.tournament.entryOpen ? 'Entradas encerradas (fim do 1º intervalo)' : pendingKinds.has('entry') ? 'Entrada solicitada' : `Solicitar entrada (${money(state.tournament.entryValue)})`}</Button>
                     ) : (
                       <>
                         <Button disabled={sending || pendingKinds.has('reentry') || !state.tournament.rebuyOpen} onClick={() => sendRequest('reentry')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> {!state.tournament.rebuyOpen ? 'Rebuy encerrado (fim do 1º intervalo)' : pendingKinds.has('reentry') ? 'Reentrada solicitada' : `Solicitar reentrada (${money(state.tournament.reentryValue)})`}</Button>

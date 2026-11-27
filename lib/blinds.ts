@@ -32,7 +32,7 @@ export type ClockState = {
   next: BlindLevel | null;      // próximo nível de jogo (pulando intervalos)
   secondsToBreak: number | null; // até o início do próximo intervalo
   pastFirstBreak: boolean;      // já chegou ao primeiro intervalo
-  entryOpen: boolean;           // entrada liberada: até o início do primeiro intervalo
+  entryOpen: boolean;           // entrada liberada: até o fim do primeiro intervalo
   rebuyOpen: boolean;           // reentrada liberada: até o fim do primeiro intervalo
   addonOpen: boolean;           // add-on liberado: só durante o primeiro intervalo
   finished: boolean;            // acabou o último nível da estrutura
@@ -90,7 +90,7 @@ export function clockAt(source: ClockSource, now = Date.now()): ClockState {
 
   // Rebuy vale até o fim do primeiro intervalo (durante o intervalo ainda pode). Sem intervalo, sempre liberado.
   // Sem intervalo na estrutura, nada é travado.
-  const entryOpen = firstBreak === -1 || index < firstBreak;
+  const entryOpen = firstBreak === -1 || index <= firstBreak;
   const rebuyOpen = firstBreak === -1 || index <= firstBreak;
   const addonOpen = firstBreak === -1 || index === firstBreak;
 
@@ -176,7 +176,7 @@ export function sanitizeStructure(input: unknown): BlindLevel[] {
 }
 
 export const REBUY_CLOSED_MESSAGE = 'As reentradas (rebuy) se encerraram no fim do primeiro intervalo.';
-export const ENTRY_CLOSED_MESSAGE = 'As entradas se encerraram no início do primeiro intervalo.';
+export const ENTRY_CLOSED_MESSAGE = 'As entradas se encerraram no fim do primeiro intervalo.';
 export const ADDON_CLOSED_MESSAGE = 'O add-on só pode ser comprado durante o primeiro intervalo.';
 
 // Prazo de cada compra pelo relógio. Retorna a mensagem de recusa ou null se estiver liberada.
