@@ -4,6 +4,7 @@ import { MyPrizes, type PrizeItem } from '@/components/my-prizes';
 import { AddonPrompt, type ClaimStatus, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { BarChart3, CircleDollarSign, Clock3, ExternalLink, Flag, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
+import { MyArea } from '@/components/my-area';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
   const [sending, setSending] = useState(false);
   const [eliminating, setEliminating] = useState(false);
   const [farewell, setFarewell] = useState('');
+  const [tab, setTab] = useState<'jogo' | 'area'>('jogo');
   const router = useRouter();
 
   const refresh = useCallback(async () => {
@@ -87,7 +89,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
 
   return (
     <main className="display-bg min-h-screen px-5 py-8 text-[#f0e1b5]">
-      <div className="mx-auto max-w-2xl">
+      <div className={`mx-auto ${tab === 'area' ? 'max-w-4xl' : 'max-w-2xl'}`}>
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="size-11 overflow-hidden rounded-full border-2 border-[#c9a45a]"><img src="/baraiada-logo.jpg" alt="Baraiada Poker Club" width="44" height="44" className="size-full object-cover" /></span>
@@ -95,10 +97,18 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
           </div>
           <div className="flex items-center gap-2">
             <a href="/painel" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Tv className="size-3.5" /> Painel <ExternalLink className="size-3" /></a>
-            <a href="/minha-area" className="flex items-center gap-1.5 rounded-full border border-[#c9a45a]/40 bg-[#c9a45a]/10 px-3 py-2 text-xs font-semibold text-[#f0e1b5] hover:bg-[#c9a45a]/20"><BarChart3 className="size-3.5" /> Minha área</a><a href="/ranking" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Trophy className="size-3.5" /> Ranking <ExternalLink className="size-3" /></a>
+            <a href="/ranking" target="_blank" className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><Trophy className="size-3.5" /> Ranking <ExternalLink className="size-3" /></a>
             <button onClick={logout} className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-[#a48e6a] hover:text-[#f0e1b5]"><LogOut className="size-3.5" /> Sair</button>
           </div>
         </header>
+
+        <nav aria-label="Seções" className="mb-6 flex rounded-full border border-white/8 bg-white/[0.035] p-1">
+          {([['jogo', 'Meu jogo', CircleDollarSign], ['area', 'Minha área', BarChart3]] as const).map(([key, label, Icon]) => (
+            <button key={key} type="button" onClick={() => setTab(key)} className={`flex flex-1 items-center justify-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition ${tab === key ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Icon className="size-3.5" /> {label}</button>
+          ))}
+        </nav>
+
+        {tab === 'area' ? <MyArea embedded /> : <>
 
         {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
 
@@ -214,6 +224,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
             </section>
           </>
         )}
+        </>}
       </div>
     </main>
   );
