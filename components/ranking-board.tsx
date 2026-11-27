@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ShareRankingImage } from '@/components/share-ranking-image';
 import { Crown, Medal, Trophy } from 'lucide-react';
 
 type RankingRow = { playerName: string; points: number; prize: number; tournaments: number; wins: number; podiums: number };
@@ -28,7 +29,7 @@ export function RankingBoard() {
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#c9a45a]">Baraiada Poker Club</p><h1 className="mt-1 font-heading text-3xl font-bold uppercase tracking-[.04em]">Ranking anual</h1></div>
-          {data && data.years.length > 1 && <select value={year ?? data.year} onChange={(event) => setYear(Number(event.target.value))} className="h-10 rounded-lg border border-[#c9a45a]/25 bg-[#15100c] px-3 text-sm text-[#f7edcf]">{data.years.map((item) => <option key={item} value={item}>{item}</option>)}</select>}
+          <div className="flex items-center gap-2">{data && data.ranking.length > 0 && <ShareRankingImage year={year ?? data.year} />}{data && data.years.length > 1 && <select value={year ?? data.year} onChange={(event) => setYear(Number(event.target.value))} className="h-10 rounded-lg border border-[#c9a45a]/25 bg-[#15100c] px-3 text-sm text-[#f7edcf]">{data.years.map((item) => <option key={item} value={item}>{item}</option>)}</select>}</div>
         </div>
         {error && <p className="text-sm text-[#c36a56]">{error}</p>}
         {!data && !error && <p className="text-sm text-[#a48e6a]">Carregando…</p>}
