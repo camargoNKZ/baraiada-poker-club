@@ -67,3 +67,13 @@ export async function nonStaffRedirectPath() {
   const { data } = await getSupabase().from('player_profiles').select('user_id').eq('user_id', user.id).maybeSingle();
   return data ? '/jogador' : '/login';
 }
+
+// "Ver como": administrador pré-visualiza as telas de outro cargo (?ver=dealer|financeiro).
+// Só muda o que aparece na tela; no servidor a pessoa continua com as permissões reais.
+export type ViewAs = 'admin' | TournamentRole;
+
+export function resolveViewAs(user: StaffUser, ver?: string | string[]): { viewAs: ViewAs; can: Permissions } {
+  const requested = Array.isArray(ver) ? ver[0] : ver;
+  if (user.isAdmin && (requested === 'dealer' || requested === 'financeiro')) return { viewAs: requested, can: permissionsFor(false, requested) };
+  return { viewAs: 'admin', can: user.can };
+}

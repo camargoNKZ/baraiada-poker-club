@@ -22,5 +22,5 @@ export default async function HistoricoPage({ searchParams }: { searchParams: Pr
   if (selected !== 'todos') query = query.eq('tournament_id', Number(selected));
   const { data } = await query;
 
-  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={admin.can} /><AuditLogView entries={(data ?? []) as AuditEntry[]} tournaments={tournaments} selected={selected} /></main>;
+  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={admin.can} canPreview={admin.isAdmin} /><AuditLogView entries={(data ?? []) as AuditEntry[]} tournaments={tournaments} selected={selected} /></main>;
 }
