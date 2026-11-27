@@ -13,7 +13,7 @@ function tournamentFromRow(row: Row) {
 }
 
 function playerFromRow(row: Row) {
-  return { id: Number(row.id), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, selfEliminated: Boolean(row.self_eliminated), farewellMessage: row.farewell_message ?? '' };
+  return { id: Number(row.id), addonDeclined: Boolean(row.addon_declined), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, selfEliminated: Boolean(row.self_eliminated), farewellMessage: row.farewell_message ?? '' };
 }
 
 function requestFromRow(row: Row) {
@@ -44,7 +44,7 @@ export async function GET() {
     let pool = 0;
 
     if (tournamentRow) {
-      const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no, self_eliminated, farewell_message').eq('tournament_id', tournamentRow.id).eq('profile_id', profile.id).maybeSingle();
+      const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no, self_eliminated, farewell_message, addon_declined').eq('tournament_id', tournamentRow.id).eq('profile_id', profile.id).maybeSingle();
       if (playerResult.error) throw playerResult.error;
       player = playerResult.data ? playerFromRow(playerResult.data) : null;
 

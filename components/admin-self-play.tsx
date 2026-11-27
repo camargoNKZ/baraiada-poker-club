@@ -1,6 +1,6 @@
 'use client';
 
-import { PaymentAlert, shouldShowPaymentAlert } from '@/components/payment-alert';
+import { AddonPrompt, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { CircleDollarSign, Copy, Flag, LoaderCircle, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { money } from '@/lib/tournament';
 
 type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean; entryOpen: boolean; rebuyOpen: boolean; addonOpen: boolean; pixKey: string };
-type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
+type PlayerRow = { id: number; addonDeclined: boolean; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
 type Accounting = { charged: number; paid: number; balance: number };
 type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: number; createdAt: number };
 type SelfProfile = { name: string; nickname: string; phone: string; email: string };
@@ -55,6 +55,15 @@ export function AdminSelfPlay() {
     setState(data); setError('');
   }
 
+  async function declineAddon() {
+    setBusy(true); setError('');
+    const response = await fetch('/api/admin/self', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'declineAddon' }) });
+    const data = await response.json() as SelfState & { error?: string };
+    setBusy(false);
+    if (!response.ok) { setError(data.error || 'Não foi possível registrar sua resposta.'); return; }
+    setState(data); setError('');
+  }
+
   async function launch(kind: 'entry' | 'reentry' | 'addon', quantity: number) {
     setBusy(true); setError('');
     const response = await fetch('/api/admin/self', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'launch', kind, quantity }) });
@@ -93,7 +102,8 @@ export function AdminSelfPlay() {
         <div className="panel rounded-[22px] border border-[#c9a45a]/20 px-6 py-12 text-center text-sm text-[#a48e6a]">Nenhum torneio ativo no momento.</div>
       ) : (
         <>
-          {state.player && state.accounting && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
+          {state.player && shouldAskAddon({ addonOpen: state.tournament.addonOpen, status: state.player.status, entries: state.player.entries, addons: state.player.addons, addonDeclined: state.player.addonDeclined, addonPending: false }) ? <AddonPrompt addonValue={state.tournament.addonValue} busy={busy} onYes={() => launch('addon', 1)} onNo={declineAddon} /> : null}
+          {state.player && state.accounting && !shouldAskAddon({ addonOpen: state.tournament.addonOpen, status: state.player.status, entries: state.player.entries, addons: state.player.addons, addonDeclined: state.player.addonDeclined, addonPending: false }) && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
           <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>
@@ -121,7 +131,8 @@ export function AdminSelfPlay() {
                     <Button disabled={busy} onClick={() => launch('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada ({money(state.tournament.reentryValue)})</Button>
                     <Button disabled={busy} onClick={() => launch('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
                   </>}
-                  {state.tournament.addonOpen && (state.player?.addons ?? 0) < 1 && (
+                  {/* Sem resposta ainda, o add-on é oferecido pela pergunta do intervalo; depois do "não", o botão permite mudar de ideia. */}
+                  {state.tournament.addonOpen && (state.player?.addons ?? 0) < 1 && state.player?.addonDeclined && (
                     <Button disabled={busy} onClick={() => launch('addon', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> Add-on ({money(state.tournament.addonValue)})</Button>
                   )}
                   {state.tournament.eliminationOpen && state.player?.status === 'active' && (

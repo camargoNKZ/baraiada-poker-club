@@ -1,6 +1,6 @@
 'use client';
 
-import { PaymentAlert, shouldShowPaymentAlert } from '@/components/payment-alert';
+import { AddonPrompt, PaymentAlert, shouldAskAddon, shouldShowPaymentAlert } from '@/components/payment-alert';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { CircleDollarSign, Clock3, ExternalLink, Flag, LoaderCircle, LogOut, Sparkles, Trophy, Tv, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -11,7 +11,7 @@ import { money } from '@/lib/tournament';
 import type { PlayerProfile } from '@/lib/player-auth';
 
 type Tournament = { id: number; name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPlaces: number; eliminationOpen: boolean; entryOpen: boolean; rebuyOpen: boolean; addonOpen: boolean; pixKey: string };
-type PlayerRow = { id: number; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
+type PlayerRow = { id: number; addonDeclined: boolean; status: string; entries: number; reentries: number; addons: number; chips: number; tableNo: string; selfEliminated: boolean; farewellMessage: string };
 type PlayerRequest = { id: number; kind: string; quantity: number; status: string; note: string; requestedAt: number; resolvedAt: number | null };
 type Accounting = { charged: number; paid: number; balance: number };
 type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: number; createdAt: number };
@@ -73,6 +73,16 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
   if (!state) return <main className="display-bg grid min-h-screen place-items-center text-[#f0e1b5]"><div className="text-center"><LoaderCircle className="mx-auto size-7 animate-spin text-[#d7b66a]" /><p className="mt-3 text-sm text-[#a48e6a]">Carregando…</p>{error && <p className="mt-2 text-xs text-[#c36a56]">{error}</p>}</div></main>;
 
   const pendingKinds = new Set(state.requests.filter((item) => item.status === 'pending').map((item) => item.kind));
+  // Pergunta do add-on no 1º intervalo e, depois da resposta, o alerta de pagamento.
+  const askAddon = Boolean(state.tournament && state.player && shouldAskAddon({ addonOpen: state.tournament.addonOpen, status: state.player.status, entries: state.player.entries, addons: state.player.addons, addonDeclined: state.player.addonDeclined, addonPending: pendingKinds.has('addon') }));
+  async function declineAddon() {
+    setSending(true); setError('');
+    const response = await fetch('/api/jogador/addon-decision', { method: 'POST' });
+    const data = await response.json() as { ok?: boolean; error?: string };
+    setSending(false);
+    if (!response.ok) { setError(data.error || 'Não foi possível registrar sua resposta.'); return; }
+    void refresh();
+  }
 
   return (
     <main className="display-bg min-h-screen px-5 py-8 text-[#f0e1b5]">
@@ -98,7 +108,8 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
           </div>
         ) : (
           <>
-            {state.player && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
+            {askAddon && <AddonPrompt addonValue={state.tournament.addonValue} busy={sending} onYes={() => sendRequest('addon', 1)} onNo={declineAddon} />}
+            {!askAddon && state.player && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} />}
             <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>
@@ -140,7 +151,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                             <Button disabled={sending} onClick={() => sendRequest('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Solicitar reentrada ({money(state.tournament.reentryValue)})</Button>
                             <Button disabled={sending} onClick={() => sendRequest('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Solicitar reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
                           </>)}
-                        {state.tournament.addonOpen && state.player.addons < 1 && (
+                        {!askAddon && state.tournament.addonOpen && state.player.addons < 1 && (
                           <Button disabled={sending || pendingKinds.has('addon')} onClick={() => sendRequest('addon')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> {pendingKinds.has('addon') ? 'Add-on solicitado' : `Solicitar add-on (${money(state.tournament.addonValue)})`}</Button>
                         )}
                         {state.tournament.eliminationOpen && state.player.status === 'active' && (

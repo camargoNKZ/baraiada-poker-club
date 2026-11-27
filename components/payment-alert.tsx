@@ -1,14 +1,14 @@
 'use client';
 
-import { BellRing, Check, Copy } from 'lucide-react';
+import { BellRing, Check, Copy, Sparkles, X } from 'lucide-react';
 import { useState } from 'react';
 
 const money = (cents: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 
-// Aviso de pagamento ao jogador: aparece quando o add-on dele foi confirmado no intervalo
-// (ou quando o 1º intervalo acabou e não há mais compras) e ainda há saldo a pagar.
-export function shouldShowPaymentAlert({ balance, addons, purchasesOver }: { balance: number; addons: number; purchasesOver: boolean }) {
-  return balance > 0 && (addons >= 1 || purchasesOver);
+// Aviso de pagamento ao jogador: aparece depois da decisão do add-on no intervalo (confirmado ou
+// recusado) ou quando o 1º intervalo acabou e não há mais compras, enquanto houver saldo a pagar.
+export function shouldShowPaymentAlert({ balance, addons, addonDeclined = false, purchasesOver }: { balance: number; addons: number; addonDeclined?: boolean; purchasesOver: boolean }) {
+  return balance > 0 && (addons >= 1 || addonDeclined || purchasesOver);
 }
 
 export function PaymentAlert({ balance, pixKey }: { balance: number; pixKey: string }) {
@@ -36,6 +36,31 @@ export function PaymentAlert({ balance, pixKey }: { balance: number; pixKey: str
           ) : (
             <p className="mt-1 text-sm text-[#c7ae7e]">Procure o financeiro do torneio para fazer o pagamento.</p>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Pergunta do intervalo: o jogador vai fazer o add-on? Aparece no 1º intervalo para quem
+// está jogando, já tem entrada, ainda não fez add-on e não respondeu.
+export function shouldAskAddon(input: { addonOpen: boolean; status: string; entries: number; addons: number; addonDeclined: boolean; addonPending: boolean }) {
+  return input.addonOpen && input.status === 'active' && input.entries >= 1 && input.addons < 1 && !input.addonDeclined && !input.addonPending;
+}
+
+export function AddonPrompt({ addonValue, busy, onYes, onNo }: { addonValue: number; busy: boolean; onYes: () => void; onNo: () => void }) {
+  return (
+    <div role="alert" className="mb-4 rounded-[18px] border border-[#65d19e]/45 bg-[linear-gradient(135deg,rgb(101_209_158/16%),rgb(101_209_158/5%))] p-4 shadow-[0_12px_30px_rgb(0_0_0/25%)] sm:p-5">
+      <div className="flex items-start gap-3">
+        <span className="grid size-10 shrink-0 animate-pulse place-items-center rounded-full bg-[#65d19e] text-[#062b16]"><Sparkles className="size-5" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#8fdcb5]">Intervalo · add-on liberado</p>
+          <p className="mt-1 text-lg font-semibold text-[#f7edcf]">Você vai fazer o add-on ({money(addonValue)})?</p>
+          <p className="mt-1 text-sm text-[#c7ae7e]">Só dá para comprar durante este intervalo. Depois da sua resposta mostramos o valor a pagar.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" disabled={busy} onClick={onYes} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#65d19e] px-4 text-sm font-bold text-[#062b16] hover:bg-[#7fe0b0] disabled:opacity-50"><Check className="size-4" /> Sim, quero o add-on</button>
+            <button type="button" disabled={busy} onClick={onNo} className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/15 bg-white/[.04] px-4 text-sm font-semibold text-[#f0e1b5] hover:bg-white/10 disabled:opacity-50"><X className="size-4" /> Não, obrigado</button>
+          </div>
         </div>
       </div>
     </div>
