@@ -20,21 +20,33 @@ async function listExternal(db: Db) {
   const t = await db.from('tournaments').select('id, name, finished_at, top3_photo_path, external_gross, rake_enabled, rake_percent').eq('external', true).order('finished_at', { ascending: false });
   if (t.error) throw t.error;
   const ids = (t.data ?? []).map((row) => row.id);
-  const results = ids.length ? await db.from('tournament_results').select('tournament_id, position, player_name, points, prize_amount').in('tournament_id', ids).order('position') : { data: [] as { tournament_id: number; position: number; player_name: string; points: number; prize_amount: number }[] };
+  const results = ids.length ? await db.from('tournament_results').select('tournament_id, position, player_name, points, prize_amount, profile_id').in('tournament_id', ids).order('position') : { data: [] as { tournament_id: number; position: number; player_name: string; points: number; prize_amount: number; profile_id: string | null }[] };
   return (t.data ?? []).map((row) => ({
     id: row.id, name: row.name, date: row.finished_at, photoUrl: photoUrl(row.top3_photo_path),
     gross: row.external_gross ?? 0, rake: rakeAmount(row.external_gross ?? 0, { rakeEnabled: Boolean(row.rake_enabled), rakePercent: Number(row.rake_percent ?? 0) }), rakePercent: row.rake_enabled ? Number(row.rake_percent) : 0,
-    results: (results.data ?? []).filter((r) => r.tournament_id === row.id).map((r) => ({ position: r.position, playerName: r.player_name, points: r.points, prize: r.prize_amount })),
+    results: (results.data ?? []).filter((r) => r.tournament_id === row.id).map((r) => ({ position: r.position, playerName: r.player_name, points: r.points, prize: r.prize_amount, linked: Boolean(r.profile_id) })),
   }));
 }
 
-// Lista os torneios externos e os nomes dos jogadores cadastrados (para escolher na classificação).
+// Pessoas cadastradas (jogadores e equipe), para vincular o resultado à Minha área de cada um.
+async function loadPeople(db: Db) {
+  const [players, admins] = await Promise.all([
+    db.from('player_profiles').select('user_id, name'),
+    db.from('admin_profiles').select('user_id, name'),
+  ]);
+  if (players.error) throw players.error;
+  if (admins.error) throw admins.error;
+  const byId = new Map<string, string>();
+  for (const p of [...(players.data ?? []), ...(admins.data ?? [])]) if (p.user_id && p.name && !byId.has(p.user_id)) byId.set(p.user_id, p.name);
+  return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+// Lista os torneios externos e as pessoas cadastradas (para escolher na classificação).
 export async function GET() {
   try {
     const auth = await requireAdmin(); if (auth.error) return auth.error;
     const db = getSupabase();
-    const profiles = await db.from('player_profiles').select('name').order('name');
-    return Response.json({ tournaments: await listExternal(db), playerNames: Array.from(new Set((profiles.data ?? []).map((p) => p.name as string))) });
+    return Response.json({ tournaments: await listExternal(db), people: await loadPeople(db) });
   } catch (error) { return errorResponse(error, 'Erro ao carregar torneios externos.'); }
 }
 
@@ -45,17 +57,26 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const name = String(form.get('name') ?? '').trim().slice(0, 80);
     const date = String(form.get('date') ?? '');
-    let results: { playerName: string; prize: number }[] = [];
+    let results: { playerName: string; prize: number; profileId?: string }[] = [];
     try { results = JSON.parse(String(form.get('results') ?? '[]')); } catch { results = []; }
     if (!name) return Response.json({ error: 'Informe o nome do torneio.' }, { status: 400 });
     // Data do evento ao meio-dia no horário de Brasília (evita virar o dia por fuso).
     const when = /^\d{4}-\d{2}-\d{2}$/.test(date) ? Date.parse(`${date}T12:00:00-03:00`) : NaN;
     if (!Number.isFinite(when) || when > Date.now() + 86400000) return Response.json({ error: 'Informe a data em que o torneio aconteceu.' }, { status: 400 });
-    const rows = results.map((r) => ({ playerName: String(r.playerName ?? '').trim().slice(0, 80), prize: Math.max(0, Math.round(Number(r.prize) || 0)) })).filter((r) => r.playerName);
+    const rows = results.map((r) => ({ playerName: String(r.playerName ?? '').trim().slice(0, 80), prize: Math.max(0, Math.round(Number(r.prize) || 0)), profileId: typeof r.profileId === 'string' ? r.profileId : '' })).filter((r) => r.playerName);
     if (!rows.length) return Response.json({ error: 'Informe a classificação com pelo menos o campeão.' }, { status: 400 });
     if (new Set(rows.map((r) => r.playerName.toLowerCase())).size !== rows.length) return Response.json({ error: 'Há jogador repetido na classificação.' }, { status: 400 });
 
     const db = getSupabase();
+    // Vínculo com o cadastro: o escolhido na lista ou, se não veio, o único cadastro com o mesmo nome.
+    const people = await loadPeople(db);
+    const linkOf = (r: { playerName: string; profileId: string }) => {
+      if (r.profileId && people.some((p) => p.id === r.profileId)) return r.profileId;
+      const same = people.filter((p) => p.name.toLowerCase() === r.playerName.toLowerCase());
+      return same.length === 1 ? same[0].id : null;
+    };
+    const linked = rows.map(linkOf);
+    if (new Set(linked.filter(Boolean)).size !== linked.filter(Boolean).length) return Response.json({ error: 'O mesmo jogador cadastrado aparece duas vezes na classificação.' }, { status: 400 });
     // Arrecadado e rake (opcionais): o rake segue a mesma regra dos torneios do sistema (múltiplo de R$ 5).
     const gross = Math.max(0, Math.round(Number(form.get('gross')) || 0));
     const rakeEnabled = form.get('rakeEnabled') === 'true';
@@ -70,7 +91,7 @@ export async function POST(request: Request) {
     }).select('id').single();
     if (created.error) throw created.error;
     const tournamentId = created.data.id as number;
-    const inserted = await db.from('tournament_results').insert(rows.map((r, index) => ({ tournament_id: tournamentId, player_id: null, player_name: r.playerName, position: index + 1, points: pointsForPosition(index + 1), prize_amount: r.prize, created_at: when, paid_at: r.prize ? when : null, payment_method: r.prize ? 'Fora do sistema' : '' })));
+    const inserted = await db.from('tournament_results').insert(rows.map((r, index) => ({ tournament_id: tournamentId, player_id: null, profile_id: linked[index], player_name: people.find((p) => p.id === linked[index])?.name ?? r.playerName, position: index + 1, points: pointsForPosition(index + 1), prize_amount: r.prize, created_at: when, paid_at: r.prize ? when : null, payment_method: r.prize ? 'Fora do sistema' : '' })));
     if (inserted.error) { await db.from('tournaments').delete().eq('id', tournamentId); throw inserted.error; }
     if (photo) {
       const path = await uploadFile(db, PHOTOS_BUCKET, `top3/${tournamentId}`, photo, 'photo');

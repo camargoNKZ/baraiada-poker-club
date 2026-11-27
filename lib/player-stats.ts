@@ -37,7 +37,8 @@ export async function loadPlayerStats(db: Db, profile: { id: string; name: strin
   const externalIds = (finishedRes.data ?? []).filter((t) => t.external).map((t) => t.id);
   const [ownResults, externalResults, allResults, txs] = await Promise.all([
     playerIds.length ? db.from('tournament_results').select('tournament_id, position, points, prize_amount').in('player_id', playerIds) : Promise.resolve({ data: [], error: null }),
-    externalIds.length ? db.from('tournament_results').select('tournament_id, position, points, prize_amount').in('tournament_id', externalIds).ilike('player_name', profile.name) : Promise.resolve({ data: [], error: null }),
+    // Externos: pelo vínculo com o cadastro; os antigos sem vínculo, pelo nome igual.
+    externalIds.length ? db.from('tournament_results').select('tournament_id, position, points, prize_amount, profile_id').in('tournament_id', externalIds).or(`profile_id.eq.${profile.id},and(profile_id.is.null,player_name.ilike.${JSON.stringify(profile.name)})`) : Promise.resolve({ data: [], error: null }),
     db.from('tournament_results').select('tournament_id, player_name, points, created_at'),
     playerIds.length ? db.from('financial_transactions').select('player_id, kind, total_amount, voided_at').in('player_id', playerIds) : Promise.resolve({ data: [], error: null }),
   ]);

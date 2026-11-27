@@ -1,8 +1,9 @@
 'use client';
 
-import { ArrowDown, ArrowUp, Banknote, CircleDollarSign, Download, FileClock, Flag, LoaderCircle, PencilLine, ReceiptText, Save, Skull, Sparkles, Trophy, UserPlus, Users, X } from 'lucide-react';
+import { Share2, ArrowDown, ArrowUp, Banknote, CircleDollarSign, Download, FileClock, Flag, LoaderCircle, PencilLine, ReceiptText, Save, Skull, Sparkles, Trophy, UserPlus, Users, X } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { announcementText, openWhatsApp } from '@/lib/whatsapp';
 import { useTournamentState } from '@/hooks/use-tournament-state';
 import type { Permissions } from '@/lib/admin-auth';
 import { BlindStructureEditor } from '@/components/blind-structure-editor';
@@ -150,7 +151,8 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
     <div className="baraiada-control mx-auto max-w-[1500px] px-5 py-7 lg:px-8">
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#d7b66a]">Painel de controle</p><h1 className="font-heading text-3xl font-bold uppercase tracking-[0.035em] text-[#f0e1b5]">Operação e financeiro</h1><p className="mt-2 text-sm text-[#789087]">Cadastre jogadores, lance cobranças e pagamentos e feche a contabilidade.</p></div>
-        {can.finance && <Button onClick={exportAccounting} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Download className="size-4" /> Exportar fechamento</Button>}
+        <div className="flex flex-wrap gap-2">{can.admin && <Button onClick={() => openWhatsApp(announcementText(state.tournament!, window.location.origin))} variant="outline" className="h-10 border-[#25d366]/30 bg-[#25d366]/10 px-4 text-[#7ee2a8] hover:bg-[#25d366]/20"><Share2 className="size-4" /> Divulgar no WhatsApp</Button>}
+        {can.finance && <Button onClick={exportAccounting} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Download className="size-4" /> Exportar fechamento</Button>}</div>
       </div>
       {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
 

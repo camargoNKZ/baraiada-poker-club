@@ -1,9 +1,10 @@
 'use client';
 
-import { Camera, Check, CircleAlert, FileText, Lock, Medal, ReceiptText, Wallet, X } from 'lucide-react';
+import { Share2, Camera, Check, CircleAlert, FileText, Lock, Medal, ReceiptText, Wallet, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/compress-image';
+import { openWhatsApp, resultText } from '@/lib/whatsapp';
 import type { Closing, ClosingResult } from '@/lib/closing';
 
 type TournamentItem = { id: number; name: string; status: string; finished_at: number | null; external?: boolean };
@@ -98,7 +99,7 @@ export function ClosingPanel({ canRegisterExternal = false }: { canRegisterExter
     <div className="baraiada-control mx-auto max-w-[1500px] px-5 py-7 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#d7b66a]">Financeiro</p><h1 className="font-heading text-3xl font-bold uppercase tracking-[0.035em] text-[#f0e1b5]">Fechamento do torneio</h1><p className="mt-2 text-sm text-[#789087]">Resumo do dinheiro, pagamento dos prêmios e foto do top 3.</p></div>
-        <div className="flex flex-wrap items-center gap-2">{canRegisterExternal && <a href="/controle/torneios-externos" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-xs font-semibold text-[#c7d2cd] hover:bg-white/5">+ Torneio externo</a>}
+        <div className="flex flex-wrap items-center gap-2">{closing && closing.results.length > 0 && <button type="button" onClick={() => openWhatsApp(resultText(closing.tournament, closing.results, window.location.origin))} className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-[#25d366]/30 bg-[#25d366]/10 px-3 text-xs font-semibold text-[#7ee2a8] hover:bg-[#25d366]/20"><Share2 className="size-3.5" /> Compartilhar resultado</button>}{canRegisterExternal && <a href="/controle/torneios-externos" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-xs font-semibold text-[#c7d2cd] hover:bg-white/5">+ Torneio externo</a>}
         <select aria-label="Torneio" value={selected ?? ''} onChange={(event) => setSelected(Number(event.target.value))} className="h-10 rounded-xl border border-white/10 bg-[#081f18] px-3 text-sm text-white sm:w-80">
           {tournaments.map((t) => <option key={t.id} value={t.id}>{t.name} #{t.id}{t.external ? ' (externo)' : ''}{t.status === 'active' ? ' (em andamento)' : t.finished_at ? ` · ${new Date(t.finished_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : ''}</option>)}
         </select></div>
