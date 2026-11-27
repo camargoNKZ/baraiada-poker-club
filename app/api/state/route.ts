@@ -43,7 +43,7 @@ function clockSnapshot(current: ReturnType<typeof tournamentFromRow>, now: numbe
 
 // Copia a configuração (valores e estrutura de blinds) do último torneio para o próximo.
 async function lastTournamentTemplate(db: Db) {
-  const last = await db.from('tournaments').select('*').order('id', { ascending: false }).limit(1).maybeSingle();
+  const last = await db.from('tournaments').select('*').eq('external', false).order('id', { ascending: false }).limit(1).maybeSingle();
   if (last.error) throw last.error;
   if (!last.data) return tournamentToRow({ ...defaultTournament, updatedAt: Date.now() });
   const row = last.data;
@@ -60,7 +60,7 @@ async function loadActiveTournamentRow(db: Db) {
 
 // Configuração sugerida para o próximo torneio (a do último, ou o padrão), usada no formulário de início.
 async function nextTournamentTemplate(db: Db) {
-  const last = await db.from('tournaments').select('*').order('id', { ascending: false }).limit(1).maybeSingle();
+  const last = await db.from('tournaments').select('*').eq('external', false).order('id', { ascending: false }).limit(1).maybeSingle();
   if (last.error) throw last.error;
   const t = last.data ? tournamentFromRow(last.data) : { ...defaultTournament };
   return { name: '', type: t.type, entryValue: t.entryValue, reentryValue: t.reentryValue, addonValue: t.addonValue, payoutPercentages: payoutPercentagesOf(t), rakeEnabled: t.rakeEnabled, rakePercent: t.rakePercent, pixKey: t.pixKey, blindLevels: levelsOf(t) };

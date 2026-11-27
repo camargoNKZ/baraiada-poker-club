@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     if (!staff) return Response.json({ error: 'Acesso não autorizado.' }, { status: 401 });
     if (!staff.can.finance) return Response.json({ error: FORBIDDEN_MESSAGE }, { status: 403 });
     const db = getSupabase();
-    const list = await db.from('tournaments').select('id, name, status, finished_at').order('id', { ascending: false }).limit(50);
+    const list = await db.from('tournaments').select('id, name, status, finished_at, external').order('id', { ascending: false }).limit(50);
     if (list.error) throw list.error;
     const tournaments = list.data ?? [];
     const requested = Number(new URL(request.url).searchParams.get('torneio'));
