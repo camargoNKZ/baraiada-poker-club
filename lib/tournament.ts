@@ -29,7 +29,10 @@ export type FinancialTransaction = {
   totalAmount: number; paymentMethod: string; note: string; createdAt: number; voidedAt: number | null;
 };
 
-export type TournamentState = { tournament: Tournament | null; players: Player[]; transactions: FinancialTransaction[]; serverNow: number; needsNewTournament: boolean; permissions: Permissions | null };
+// Configuração sugerida para o próximo torneio (formulário "Começar novo torneio").
+export type TournamentTemplate = { name: string; type: string; entryValue: number; reentryValue: number; addonValue: number; payoutPercentages: number[]; rakeEnabled: boolean; rakePercent: number; pixKey: string; blindLevels: BlindLevel[] };
+
+export type TournamentState = { tournament: Tournament | null; players: Player[]; transactions: FinancialTransaction[]; serverNow: number; needsNewTournament: boolean; permissions: Permissions | null; template?: TournamentTemplate | null };
 
 export const defaultTournament: Tournament = {
   id: 1, name: 'Main Event — Clube Paulista', type: 'Reentrada ilimitada',

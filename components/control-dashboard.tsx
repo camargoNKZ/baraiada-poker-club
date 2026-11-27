@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useTournamentState } from '@/hooks/use-tournament-state';
 import type { Permissions } from '@/lib/admin-auth';
 import { BlindStructureEditor } from '@/components/blind-structure-editor';
+import { NewTournamentForm } from '@/components/new-tournament-form';
 import { TournamentClock, useNow } from '@/components/tournament-clock';
 import { clockAt, levelsOf } from '@/lib/blinds';
 import { defaultPercentages, money, netPrizePool, payoutPercentagesOf, rakeAmount, payouts, percentagesTotal, playerAccounting, prizePool } from '@/lib/tournament';
@@ -113,8 +114,10 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
     if (await mutate({ action: 'finishTournament', order: finishOrder })) setFinishOrder(null);
   }
 
-  async function startNewTournament() {
-    await mutate({ action: 'newTournament' });
+  // O torneio só é criado depois de configurado no formulário (nome obrigatório).
+  const [showNewTournament, setShowNewTournament] = useState(false);
+  async function startNewTournament(config: Record<string, unknown>) {
+    if (await mutate({ action: 'newTournament', ...config })) setShowNewTournament(false);
   }
 
   function exportAccounting() {
@@ -135,9 +138,10 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
       <div className="panel grid place-items-center rounded-[22px] border border-[#d7b66a]/15 px-6 py-16 text-center">
         <Trophy className="size-8 text-[#d7b66a]" />
         <h1 className="mt-4 font-heading text-2xl font-bold uppercase tracking-[.04em] text-[#f0e1b5]">Nenhum torneio em andamento</h1>
-        <p className="mt-2 max-w-md text-sm text-[#789087]">O último torneio foi encerrado e a colocação final já está no ranking anual. Inicie um novo torneio para abrir cadastro de jogadores.</p>
+        <p className="mt-2 max-w-md text-sm text-[#789087]">Para abrir as inscrições, comece um novo torneio: primeiro você dá o nome e configura valores, Pix, rake, premiação e estrutura de blinds.</p>
         {error && <p className="mt-3 text-sm text-[#d88383]">{error}</p>}
-        {can.admin ? <Button onClick={startNewTournament} disabled={saving} className="mt-6 h-11 bg-[#d7b66a] px-6 font-bold text-[#14251e] hover:bg-[#e5c779]"><Sparkles className="size-4" /> Iniciar novo torneio</Button> : <p className="mt-6 text-xs text-[#60786f]">Aguarde um administrador iniciar o próximo torneio.</p>}
+        {showNewTournament && <NewTournamentForm template={state.template} saving={saving} error={error} onCancel={() => setShowNewTournament(false)} onSubmit={(config) => void startNewTournament(config)} />}
+        {can.admin ? <Button onClick={() => setShowNewTournament(true)} disabled={saving} className="mt-6 h-11 bg-[#d7b66a] px-6 font-bold text-[#14251e] hover:bg-[#e5c779]"><Sparkles className="size-4" /> Começar novo torneio</Button> : <p className="mt-6 text-xs text-[#60786f]">Aguarde um administrador iniciar o próximo torneio.</p>}
       </div>
     </div>
   );
