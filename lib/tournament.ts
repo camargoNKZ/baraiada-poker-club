@@ -8,6 +8,7 @@ export type Tournament = {
   blindLevels: BlindLevel[]; alertAudioPath: string;
   payoutPercentages: number[]; // % do prêmio por posição; vazio = divisão padrão
   rakeEnabled: boolean; rakePercent: number; // rake descontado do total antes da premiação
+  pixKey: string; // chave Pix que recebe os pagamentos do torneio
   status: 'active' | 'finished'; finishedAt: number | null; currentLevel: number;
   lastEliminationName: string; lastEliminationAt: number | null; lastEliminationMessage: string;
 };
@@ -37,7 +38,7 @@ export const defaultTournament: Tournament = {
   timerStartedAt: null, timerPausedSeconds: 20 * 60, updatedAt: Date.now(),
   status: 'active', finishedAt: null, currentLevel: 0,
   lastEliminationName: '', lastEliminationAt: null, lastEliminationMessage: '',
-  payoutPercentages: [], rakeEnabled: false, rakePercent: 0, blindLevels: generateStructure(defaultGeneratorOptions), alertAudioPath: 'blind-alert-4bb4b357-141c-4962-8eff-15ad9a484c4a.ogg',
+  payoutPercentages: [], rakeEnabled: false, rakePercent: 0, pixKey: '', blindLevels: generateStructure(defaultGeneratorOptions), alertAudioPath: 'blind-alert-4bb4b357-141c-4962-8eff-15ad9a484c4a.ogg',
 };
 
 export function prizePool(tournament: Tournament, players: Player[], transactions?: FinancialTransaction[]) {

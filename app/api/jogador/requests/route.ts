@@ -59,6 +59,8 @@ export async function POST(request: Request) {
     });
     if (inserted.error) throw inserted.error;
 
+    // Pedir o add-on desfaz um "não" dado antes no intervalo.
+    if (kind === 'addon' && player) { const reset = await db.from('players').update({ addon_declined: false }).eq('id', player.id); if (reset.error) throw reset.error; }
     await logAction(db, { actor: profile, tournamentId: tournament.id, action: 'createRequest', summary: kind === 'register' ? 'Pediu inscrição no torneio' : `Pediu ${(KIND_LABEL[kind] ?? kind).toLowerCase()}${quantity > 1 ? ` ×${quantity}` : ''}` });
     await notifyTournamentChange();
     return Response.json({ ok: true });

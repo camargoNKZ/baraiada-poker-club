@@ -13,11 +13,11 @@ type Row = Record<string, any>;
 type Db = ReturnType<typeof getSupabase>;
 
 function tournamentFromRow(row: Row) {
-  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak, entryOpen: clockFromRow(row).entryOpen, rebuyOpen: clockFromRow(row).rebuyOpen, addonOpen: clockFromRow(row).addonOpen };
+  return { id: row.id, name: row.name, type: row.type, entryValue: row.entry_value, reentryValue: row.reentry_value, addonValue: row.addon_value, payoutPlaces: row.payout_places, eliminationOpen: clockFromRow(row).pastFirstBreak, entryOpen: clockFromRow(row).entryOpen, rebuyOpen: clockFromRow(row).rebuyOpen, addonOpen: clockFromRow(row).addonOpen, pixKey: (row.pix_key as string) ?? '' };
 }
 
 function playerFromRow(row: Row) {
-  return { id: Number(row.id), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, selfEliminated: Boolean(row.self_eliminated), farewellMessage: row.farewell_message ?? '' };
+  return { id: Number(row.id), addonDeclined: Boolean(row.addon_declined), status: row.status, entries: row.entries, reentries: row.reentries, addons: row.addons, chips: row.chips, tableNo: row.table_no, selfEliminated: Boolean(row.self_eliminated), farewellMessage: row.farewell_message ?? '' };
 }
 
 const kindLabel: Record<string, string> = { entry: 'Entrada', reentry: 'Reentrada', addon: 'Add-on', payment: 'Pagamento' };
@@ -37,7 +37,7 @@ async function ensurePlayerProfile(db: Db, admin: { id: string; name: string; ni
 }
 
 async function buildSelfState(db: Db, admin: { id: string; name: string; nickname: string; phone: string; email: string }) {
-  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes, rake_enabled, rake_percent').eq('status', 'active').maybeSingle();
+  const tournamentResult = await db.from('tournaments').select('id, name, type, entry_value, reentry_value, addon_value, payout_places, current_level, blind_levels, timer_started_at, timer_paused_seconds, small_blind, big_blind, ante, level_minutes, rake_enabled, rake_percent, pix_key').eq('status', 'active').maybeSingle();
   if (tournamentResult.error) throw tournamentResult.error;
   const tournamentRow = tournamentResult.data;
   const [isSupport, roleLabel] = await Promise.all([isSupportProfile(db, admin.id), supportRoleLabel(db, admin.id)]);
@@ -48,7 +48,7 @@ async function buildSelfState(db: Db, admin: { id: string; name: string; nicknam
   let pool = 0;
 
   if (tournamentRow) {
-    const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no, self_eliminated, farewell_message').eq('tournament_id', tournamentRow.id).eq('profile_id', admin.id).maybeSingle();
+    const playerResult = await db.from('players').select('id, status, entries, reentries, addons, chips, table_no, self_eliminated, farewell_message, addon_declined').eq('tournament_id', tournamentRow.id).eq('profile_id', admin.id).maybeSingle();
     if (playerResult.error) throw playerResult.error;
     player = playerResult.data ? playerFromRow(playerResult.data) : null;
 
@@ -129,6 +129,18 @@ export async function POST(request: Request) {
 
     const linked = await ensurePlayerProfile(db, admin);
     if (!linked) return Response.json({ error: 'Vincule seu cadastro de jogador antes de lançar valores.' }, { status: 400 });
+
+    if (action === 'declineAddon') {
+      const tournamentResult = await db.from('tournaments').select('*').eq('status', 'active').maybeSingle();
+      if (tournamentResult.error) throw tournamentResult.error;
+      const tournament = tournamentResult.data;
+      if (!tournament) return Response.json({ error: 'Não há torneio ativo no momento.' }, { status: 400 });
+      const updated = await db.from('players').update({ addon_declined: true }).eq('tournament_id', tournament.id).eq('profile_id', admin.id).eq('addons', 0);
+      if (updated.error) throw updated.error;
+      await logAction(db, { actor: admin, tournamentId: tournament.id, action: 'declineAddon', summary: 'Respondeu que não vai fazer o add-on' });
+      await notifyTournamentChange();
+      return Response.json({ needsProfile: false, ...(await buildSelfState(db, admin)) });
+    }
 
     if (action === 'eliminate') {
       const message = String(body.message ?? '').trim().slice(0, 240);
