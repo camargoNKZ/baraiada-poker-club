@@ -108,6 +108,9 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
           ))}
         </nav>
 
+        {/* Avisos do intervalo aparecem em qualquer aba. */}
+            {state.tournament && askAddon && <AddonPrompt addonValue={state.tournament.addonValue} busy={sending} onYes={() => sendRequest('addon', 1)} onNo={declineAddon} />}
+            {state.tournament && !askAddon && state.player && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} claim={state.paymentClaim} onClaimed={() => void refresh()} />}
         {tab === 'area' ? <MyArea embedded /> : <>
 
         {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
@@ -121,8 +124,6 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
           </div>
         ) : (
           <>
-            {askAddon && <AddonPrompt addonValue={state.tournament.addonValue} busy={sending} onYes={() => sendRequest('addon', 1)} onNo={declineAddon} />}
-            {!askAddon && state.player && shouldShowPaymentAlert({ balance: state.accounting.balance, addons: state.player.addons, addonDeclined: state.player.addonDeclined, purchasesOver: !state.tournament.rebuyOpen && state.tournament.eliminationOpen }) && <PaymentAlert balance={state.accounting.balance} pixKey={state.tournament.pixKey} claim={state.paymentClaim} onClaimed={() => void refresh()} />}
             <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>
@@ -143,9 +144,9 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                 )
               ) : (
                 <>
-                  <div className="mt-5 grid grid-cols-3 gap-3">
-                    {[['Status', state.player.status === 'active' ? 'Em jogo' : state.player.status === 'eliminated' ? 'Eliminado' : 'Aguardando entrada'], ['Mesa', state.player.tableNo || '—'], ['Lançamentos', `${state.player.entries}E · ${state.player.reentries}R · ${state.player.addons}A`]].map(([label, value]) => (
-                      <div key={label} className="rounded-xl border border-white/8 bg-black/10 p-3"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">{label}</p><p className="mt-1 text-sm font-semibold text-[#e7ece9]">{value}</p></div>
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {[['Status', state.player.status === 'active' ? 'Em jogo' : state.player.status === 'eliminated' ? 'Eliminado' : 'Aguardando entrada'], ['Mesa', state.player.tableNo || '—'], ['Lançamentos', `${state.player.entries} ${state.player.entries === 1 ? 'entrada' : 'entradas'} · ${state.player.reentries} ${state.player.reentries === 1 ? 'reentrada' : 'reentradas'} · ${state.player.addons} add-on`]].map(([label, value]) => (
+                      <div key={label} className={`rounded-xl border border-white/8 bg-black/10 p-3 ${label === 'Lançamentos' ? 'col-span-2 sm:col-span-1' : ''}`}><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">{label}</p><p className="mt-1 text-sm font-semibold text-[#e7ece9]">{value}</p></div>
                     ))}
                   </div>
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-5">

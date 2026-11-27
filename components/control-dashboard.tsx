@@ -154,20 +154,27 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
       </div>
       {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
 
-      <TournamentClock tournament={state.tournament} serverOffset={serverOffset} canOperate={can.floor} canFinish={can.admin} saving={saving} onCommand={(command) => void mutate({ action: 'timer', command })} onFinish={finishTournament} />
+      {/* Atalhos no celular: a página empilha tudo, então dá para pular direto para cada parte. */}
+      <nav aria-label="Ir para" className="sticky top-[76px] z-20 -mx-5 mb-4 flex gap-2 overflow-x-auto border-b border-white/8 bg-[#0d0c0a]/95 px-5 py-2.5 backdrop-blur lg:hidden">
+        {[['relogio', 'Relógio', true], ['blinds', 'Blinds', can.admin], ['resumo', 'Resumo', true], ['cadastro', 'Cadastro', can.floor], ['configuracao', 'Configuração', can.admin], ['jogadores', 'Jogadores', true], ['extrato', 'Extrato', true]].filter(([, , show]) => show).map(([id, label]) => (
+          <a key={String(id)} href={`#${id}`} className="shrink-0 whitespace-nowrap rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-xs font-semibold text-[#d9c79e] active:bg-[#c9a45a] active:text-[#171008]">{label}</a>
+        ))}
+      </nav>
 
-      {can.admin && <BlindStructureEditor key={JSON.stringify(levelsOf(state.tournament))} levels={levelsOf(state.tournament)} currentIndex={clockAt(state.tournament, now + serverOffset).index} saving={saving} onSave={(levels) => mutate({ action: 'saveBlindStructure', levels })} />}
+      <div id="relogio" className="scroll-mt-[136px]"><TournamentClock tournament={state.tournament} serverOffset={serverOffset} canOperate={can.floor} canFinish={can.admin} saving={saving} onCommand={(command) => void mutate({ action: 'timer', command })} onFinish={finishTournament} /></div>
 
-      <section className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {can.admin && <div id="blinds" className="scroll-mt-[136px]"><BlindStructureEditor key={JSON.stringify(levelsOf(state.tournament))} levels={levelsOf(state.tournament)} currentIndex={clockAt(state.tournament, now + serverOffset).index} saving={saving} onSave={(levels) => mutate({ action: 'saveBlindStructure', levels })} /></div>}
+
+      <section id="resumo" className="mb-4 grid scroll-mt-[136px] grid-cols-2 gap-3 xl:grid-cols-4">
         {[
           { label: 'Jogadores ativos', value: String(activePlayers), detail: `${registeredPlayers} aguardando primeira entrada`, icon: Users, color: 'text-white' },
           { label: 'Total lançado', value: money(charged), detail: 'Entradas, reentradas e add-ons', icon: ReceiptText, color: 'text-white' },
           { label: 'Total recebido', value: money(received), detail: 'Pagamentos confirmados', icon: Banknote, color: 'text-[#65d19e]' },
           { label: 'Saldo a receber', value: money(pending), detail: pending > 0 ? 'Cobranças ainda pendentes' : 'Contabilidade em dia', icon: CircleDollarSign, color: pending > 0 ? 'text-[#e3c578]' : 'text-[#65d19e]' },
-        ].map((item) => <article key={item.label} className="metric-card rounded-[18px] border border-white/8 p-5"><div className="flex items-start justify-between"><p className={labelClass}>{item.label}</p><item.icon className="size-4 text-[#d7b66a]" /></div><p className={`mt-4 text-2xl font-semibold tracking-[-0.04em] ${item.color}`}>{item.value}</p><p className="mt-1 text-xs text-[#6f887f]">{item.detail}</p></article>)}
+        ].map((item) => <article key={item.label} className="metric-card rounded-[18px] border border-white/8 p-4 sm:p-5"><div className="flex items-start justify-between"><p className={labelClass}>{item.label}</p><item.icon className="size-4 text-[#d7b66a]" /></div><p className={`mt-3 text-xl font-semibold tracking-[-0.04em] sm:mt-4 sm:text-2xl ${item.color}`}>{item.value}</p><p className="mt-1 text-xs text-[#6f887f]">{item.detail}</p></article>)}
       </section>
 
-      {can.floor && <section className="panel mb-4 rounded-[22px] border border-[#d7b66a]/15">
+      {can.floor && <section id="cadastro" className="panel mb-4 scroll-mt-[136px] rounded-[22px] border border-[#d7b66a]/15">
         <div className="border-b border-white/8 p-5 sm:p-6"><div className="mb-4"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">Cadastro de player</p><h2 className="mt-2 text-lg font-semibold text-white">Dados pessoais e operacionais</h2><p className="mt-1 text-xs text-[#718a81]">Este cadastro não lança valores. As cobranças serão feitas depois, na ficha do player.</p></div>
           <form onSubmit={addPlayer} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <label className={labelClass}>Nome completo<input required placeholder="Nome do player" className={fieldClass} value={player.name} onChange={(e) => setPlayer({ ...player, name: e.target.value })} /></label>
@@ -183,7 +190,7 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
       </section>}
 
       <section className={`grid gap-4 ${can.admin ? 'xl:grid-cols-[1.25fr_.75fr]' : ''}`}>
-        {can.admin && <form onSubmit={saveSettings} className="panel rounded-[22px] border border-white/8 p-5 sm:p-6">
+        {can.admin && <form id="configuracao" onSubmit={saveSettings} className="panel scroll-mt-[136px] rounded-[22px] border border-white/8 p-5 sm:p-6">
           <div className="mb-5 flex items-center justify-between"><div><h2 className="text-lg font-semibold text-white">Configuração do torneio</h2><p className="mt-1 text-xs text-[#718a81]">Valores padrão usados nos novos lançamentos</p></div><Button type="submit" disabled={saving || !percentOk || !rakeOk} className="h-9 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><Save className="size-4" /> Salvar</Button></div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <label className={`sm:col-span-2 ${labelClass}`}>Nome do torneio<input className={fieldClass} value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
@@ -217,7 +224,7 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
         <article className="felt-card rounded-[22px] border border-white/9 p-5 sm:p-6"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">Premiação projetada</p><h2 className="mt-2 text-xl font-semibold text-white">{money(pool)} em prêmios</h2><p className="mt-1 text-xs text-[#83a397]">{rakeValue ? `${money(grossPool)} arrecadado − ${money(rakeValue)} de rake (${rakeSettings.rakePercent}%).` : 'Calculada pelos valores efetivamente lançados, sem rake.'}</p><div className="mt-5 space-y-2">{awards.map((value, index) => <div key={index} className="flex items-center gap-3 rounded-xl border border-white/7 bg-black/10 px-4 py-3"><span className={`grid size-7 place-items-center rounded-full text-xs font-bold ${index < 3 ? 'bg-[#d7b66a] text-[#14251e]' : 'bg-white/7 text-[#9ab0a8]'}`}>{index + 1}º</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/20"><div className="h-full rounded-full bg-[#d7b66a]/75" style={{ width: `${pool ? (value / pool) * 100 : 0}%` }} /></div><strong className="w-24 text-right font-mono text-sm text-white">{money(value)}</strong></div>)}</div></article>
       </section>
 
-      <section className="panel mt-4 rounded-[22px] border border-white/8">
+      <section id="jogadores" className="panel mt-4 scroll-mt-[136px] rounded-[22px] border border-white/8">
         <div className="border-b border-white/8 p-5 sm:p-6"><h2 className="text-lg font-semibold text-white">Jogadores e contas individuais</h2><p className="mt-1 text-xs text-[#718a81]">Lance novas cobranças, registre pagamentos e acompanhe o saldo.</p></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[1020px] text-left"><thead className="text-[10px] uppercase tracking-[.13em] text-[#60786f]"><tr><th className="px-6 py-3">Jogador</th><th className="py-3">Mesa</th><th className="py-3 text-right">Cobrado</th><th className="py-3 text-right">Pago</th><th className="py-3 text-right">Saldo</th><th className="px-6 py-3 text-right">Ações</th></tr></thead><tbody>
           {state.players.map((item) => {
@@ -233,7 +240,7 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
         </tbody></table></div>
       </section>
 
-      <section className="panel mt-4 rounded-[22px] border border-white/8">
+      <section id="extrato" className="panel mt-4 scroll-mt-[136px] rounded-[22px] border border-white/8">
         <div className="flex items-center justify-between border-b border-white/8 p-5 sm:p-6"><div><div className="flex items-center gap-2"><FileClock className="size-4 text-[#d7b66a]" /><h2 className="text-lg font-semibold text-white">Extrato financeiro</h2></div><p className="mt-1 text-xs text-[#718a81]">Histórico auditável de cobranças e pagamentos</p></div><Button onClick={exportAccounting} variant="ghost" className="text-[#d7b66a] hover:bg-white/5 hover:text-[#e5c779]"><Download className="size-4" /> CSV</Button></div>
         <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left"><thead className="text-[10px] uppercase tracking-[.13em] text-[#60786f]"><tr><th className="px-6 py-3">Data</th><th className="py-3">Jogador</th><th className="py-3">Lançamento</th><th className="py-3">Pagamento</th><th className="py-3">Observação</th><th className="px-6 py-3 text-right">Valor</th></tr></thead><tbody>
           {state.transactions.slice(0, 30).map((item) => { const owner = state.players.find((playerItem) => playerItem.id === item.playerId); return <tr key={item.id} className={`border-t border-white/6 text-xs ${item.voidedAt ? 'opacity-35 line-through' : ''}`}><td className="px-6 py-3.5 font-mono text-[#698179]">{new Date(item.createdAt).toLocaleString('pt-BR')}</td><td className="py-3.5 font-semibold text-[#dce5e1]">{owner?.name ?? '—'}</td><td className="py-3.5 text-[#8da79e]">{kindLabel[item.kind] ?? item.kind}{item.quantity > 1 ? ` × ${item.quantity}` : ''}</td><td className="py-3.5 text-[#8da79e]">{item.paymentMethod || '—'}</td><td className="max-w-[240px] truncate py-3.5 text-[#698179]">{item.note || '—'}</td><td className={`px-6 py-3.5 text-right font-mono font-semibold ${item.totalAmount < 0 ? 'text-[#65d19e]' : 'text-white'}`}>{money(item.totalAmount)} {can.finance && !item.voidedAt && <button aria-label="Estornar lançamento" title="Estornar lançamento" onClick={() => mutate({ action: 'voidTransaction', transactionId: item.id })} className="ml-2 text-[#d88383] no-underline hover:text-[#eea0a0]"><X className="inline size-3.5" /></button>}</td></tr>; })}
