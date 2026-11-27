@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Manual do Administrador — Baraiada Poker Club</title>
+<style>
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1f1a14; font-size: 11pt; line-height: 1.5; margin: 0; }
+  h1 { font-size: 24pt; margin: 0 0 4pt; color: #6b1e1e; }
+  .sub { color: #8a7a60; margin-bottom: 18pt; }
+  h2 { font-size: 16pt; color: #6b1e1e; border-bottom: 2px solid #c9a45a; padding-bottom: 3pt; margin-top: 22pt; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin: 16pt 0 4pt; page-break-after: avoid; }
+  code { background: #f3ecdd; padding: 0 3px; border-radius: 3px; font-size: 10pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0; }
+  th, td { border: 1px solid #d8ccb4; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  th { background: #f3ecdd; }
+  figure { margin: 10pt 0 14pt; page-break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #c9a45a; border-radius: 6px; }
+  figure.narrow img { width: 70%; display: block; margin: 0 auto; }
+  figcaption { font-size: 9pt; color: #8a7a60; text-align: center; margin-top: 3pt; }
+  .note { font-style: italic; color: #8a7a60; }
+  .faq p { margin: 6pt 0; }
+  li { margin: 2pt 0; }
+</style>
+</head>
+<body>
+<h1>Manual do Administrador</h1>
+<div class="sub">Baraiada Poker Club · 27/11/2026</div>
+
+<h2>Introdução</h2>
+<p>O administrador conduz o torneio do começo ao fim: abre o torneio, controla o relógio, aprova pagamentos, paga os prêmios e encerra o fechamento. Tudo é feito pela área <strong>Controle</strong> (<code>/controle</code>) e atualiza em tempo real o painel da TV e o celular dos jogadores.</p>
+<p class="note">As imagens deste manual usam um torneio de exemplo com nomes e valores fictícios.</p>
+<table>
+  <tr><th>Cargo</th><th>Validade</th><th>O que pode fazer</th></tr>
+  <tr><td>Administrador</td><td>Fixo</td><td>Tudo, inclusive cargos, torneios externos, códigos de senha e histórico</td></tr>
+  <tr><td>Dealer</td><td>Por torneio</td><td>Relógio, jogadores e eliminações</td></tr>
+  <tr><td>Financeiro</td><td>Por torneio</td><td>Lançamentos, aprovações e fechamento</td></tr>
+</table>
+<p>Dealer e Financeiro ganham desconto no torneio em que atuam. O administrador não tem desconto, a menos que também tenha um desses cargos naquele torneio.</p>
+
+<h2>Acesso</h2>
+<p>Entre em <code>/login</code> com e-mail e senha; quem é da equipe vai direto para <code>/controle</code>.</p>
+<ol>
+  <li>Abra <code>/login</code> e informe e-mail e senha.</li>
+  <li>Esqueceu a senha? Peça a outro administrador um código de redefinição (veja Equipe e cargos) e use-o em <code>/redefinir-senha</code>.</li>
+  <li>Pessoa nova na equipe: ela cria a conta em <code>/cadastro</code>; depois um administrador define o cargo dela.</li>
+  <li>Use <strong>Ver como</strong> no menu para conferir a tela de um jogador ou de outro cargo; <strong>Sair da visualização</strong> volta ao normal.</li>
+  <li>Na TV da sala, abra <code>/painel</code> (não precisa de login).</li>
+</ol>
+<figure class="narrow"><img src="login.png"><figcaption>Tela de login</figcaption></figure>
+
+<h2>Funcionalidades passo a passo</h2>
+<p>Um torneio segue sempre esta ordem: abrir, conduzir, aprovar pagamentos, encerrar e fechar.</p>
+
+<h3>1. Abrir um novo torneio (<code>/controle</code>)</h3>
+<ol>
+  <li>Clique em <strong>Começar novo torneio</strong>.</li>
+  <li>Preencha <strong>Nome do torneio</strong> e escolha o <strong>Tipo</strong>: Freezeout, Reentrada limitada, Reentrada ilimitada, Progressive Knockout ou Satélite.</li>
+  <li>Monte a <strong>Estrutura de blinds</strong>: use <strong>Usar a do último torneio</strong> ou o <strong>Gerador</strong>; ajuste níveis (small blind, big blind, ante, minutos), insira intervalos e reordene com as setas.</li>
+  <li>Defina o <strong>Rake</strong> (percentual ou sem rake), os <strong>Lugares premiados</strong> e a <strong>Divisão da premiação</strong> — a soma precisa dar 100%.</li>
+  <li>Informe a <strong>Chave Pix para receber</strong> e confirme.</li>
+</ol>
+<figure><img src="blinds.png"><figcaption>Estrutura de blinds com o gerador</figcaption></figure>
+<figure class="narrow"><img src="config.png"><figcaption>Configuração do torneio: rake, lugares premiados e divisão da premiação</figcaption></figure>
+
+<h3>2. Conduzir o torneio (<code>/controle</code>)</h3>
+<ul>
+  <li><strong>Relógio:</strong> inicie, pause e avance os níveis; o painel da TV acompanha.</li>
+  <li><strong>Cadastro de player:</strong> cadastre quem não se inscreveu pelo celular (apelido, contato, mesa inicial).</li>
+  <li><strong>Lançar valores:</strong> registre entrada, reentrada, add-on e pagamentos (Pix, Dinheiro, Cartão ou Cortesia). Errou? Use <strong>Estornar lançamento</strong>.</li>
+  <li><strong>Eliminar:</strong> marque a eliminação do jogador; ela aparece no painel.</li>
+  <li><strong>Divulgar no WhatsApp:</strong> gera a mensagem do torneio para compartilhar.</li>
+  <li>Entrada e reentrada valem até o fim do 1º intervalo; o add-on só durante o 1º intervalo e é a última compra.</li>
+</ul>
+<figure><img src="relogio.png"><figcaption>Relógio: Pausar, Nível anterior, Próximo nível, Recomeçar nível e Encerrar torneio</figcaption></figure>
+<figure><img src="cadastro.png"><figcaption>Cadastro de player</figcaption></figure>
+<figure><img src="jogadores.png"><figcaption>Jogadores e contas individuais: Lançar valores e Eliminar</figcaption></figure>
+
+<h3>3. Aprovar pedidos e pagamentos (<code>/controle/solicitacoes</code>)</h3>
+<ol>
+  <li>Em <strong>Solicitações de jogadores</strong>, clique em <strong>Aprovar</strong> ou <strong>Recusar</strong> cada pedido de compra (inclusive entrada e reentrada dupla).</li>
+  <li>Em <strong>Pagamentos informados</strong>, abra <strong>Ver comprovante</strong> e clique em <strong>Confirmar pagamento</strong> ou <strong>Recusar</strong> cada "Já paguei".</li>
+  <li>O <strong>Histórico recente</strong> mostra as últimas decisões.</li>
+</ol>
+<figure><img src="solicitacoes.png"><figcaption>Solicitações pendentes e pagamentos informados</figcaption></figure>
+
+<h3>4. Encerrar o torneio (<code>/controle</code>)</h3>
+<ol>
+  <li>Clique em <strong>Encerrar torneio</strong> e confirme a classificação final.</li>
+  <li>O sistema bloqueia o encerramento enquanto houver saldo em aberto ou "Já paguei" pendente.</li>
+  <li>Use <strong>Exportar fechamento</strong> (CSV) se quiser guardar a planilha.</li>
+</ol>
+
+<h3>5. Fechamento (<code>/controle/fechamento</code>)</h3>
+<ol>
+  <li>Confira o resumo do dinheiro.</li>
+  <li>Em <strong>Pagamento dos prêmios</strong>, escolha a forma (Pix, Dinheiro ou Transferência), anexe o comprovante (opcional) e clique em <strong>Marcar como pago</strong>.</li>
+  <li>Envie a <strong>Foto do top 3</strong>.</li>
+  <li>Quando aparecer "Tudo pago e com foto", clique em <strong>Finalizar fechamento</strong>. Se faltar algo, a tela lista o que falta.</li>
+  <li>Use <strong>Compartilhar resultado</strong> para divulgar.</li>
+</ol>
+<figure><img src="fechamento.png"><figcaption>Fechamento: o que falta, pagamento dos prêmios e foto do top 3</figcaption></figure>
+
+<h3>6. Torneios externos (<code>/controle/torneios-externos</code>)</h3>
+<p>Registre torneios jogados fora do sistema para que entrem no ranking: nome, data, total arrecadado, rake e a classificação (jogador e prêmio por posição, com <strong>Adicionar posição</strong>). <strong>Excluir</strong> remove o registro.</p>
+<figure><img src="externos.png"><figcaption>Cadastro de torneio externo</figcaption></figure>
+
+<h3>7. Equipe e cargos (<code>/controle/admins</code>)</h3>
+<ul>
+  <li>Busque a pessoa em <strong>Pessoas cadastradas</strong> e defina o cargo: Administrador, ou Dealer / Financeiro no torneio atual.</li>
+  <li><strong>Redefinição de senha:</strong> clique em <strong>Gerar código</strong> e envie com <strong>Enviar no WhatsApp</strong>.</li>
+</ul>
+<figure><img src="admins.png"><figcaption>Equipe e cargos: cargo no torneio e Gerar código</figcaption></figure>
+
+<h3>8. Histórico de ações (<code>/controle/historico</code>)</h3>
+<p>Auditoria de tudo que foi feito. Filtre por torneio e tipo de ação, ou busque por pessoa, jogador ou valor.</p>
+<figure><img src="historico.png"><figcaption>Histórico de ações com filtros</figcaption></figure>
+
+<h3>9. Jogar como administrador (<code>/controle/meu-jogo</code>)</h3>
+<p>Vincule seu cadastro de jogador para ver seus gastos, saldo a pagar e premiação, e use <strong>Reportar eliminação</strong> quando cair.</p>
+
+<h2>Boas práticas e dúvidas frequentes</h2>
+<ul>
+  <li><strong>Defina Dealer e Financeiro antes de abrir o torneio</strong>, para que o desconto seja aplicado.</li>
+  <li><strong>Aprove os "Já paguei" ao longo do jogo</strong>, não só no fim; o encerramento fica travado enquanto houver pendências.</li>
+  <li><strong>Corrija erros com estorno</strong>, nunca com lançamento negativo; tudo fica no histórico.</li>
+  <li><strong>Valores de prêmio e rake são sempre múltiplos de R$ 5</strong>, e os prêmios exibidos já descontam o rake.</li>
+</ul>
+<div class="faq">
+<p><strong>Não consigo encerrar o torneio.</strong> Ainda há saldo em aberto ou "Já paguei" pendente. Confira <code>/controle/solicitacoes</code> e o extrato de cada jogador.</p>
+<p><strong>O botão Finalizar fechamento não libera.</strong> Falta marcar algum prêmio como pago ou enviar a foto do top 3; a tela lista o que falta.</p>
+<p><strong>O jogador não consegue fazer add-on.</strong> O add-on só é aceito durante o 1º intervalo.</p>
+<p><strong>Alguém esqueceu a senha.</strong> Gere um código em <code>/controle/admins</code> e envie pelo WhatsApp.</p>
+</div>
+</body>
+</html>
