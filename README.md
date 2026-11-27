@@ -1,30 +1,39 @@
 # Baraiada Poker Club
 
-Aplicativo de gestão completa para torneios de poker — feito para tirar o "financeiro no papel" e o "blind no grito" da mesa e colocar tudo num painel só, em tempo real.
+Sistema de gestão dos torneios do Baraiada: relógio de blinds, inscrições e compras, financeiro, premiação, fechamento e ranking, tudo em tempo real.
 
-## Por que existe
+## Áreas
 
-O **Baraiada Poker Club** nasceu para resolver um problema bem prático: organizar um torneio de poker privado entre amigos exige controlar, ao mesmo tempo, o jogo (blinds, tempo de nível, eliminações) e o dinheiro (entradas, reentradas, addons, premiação) — e fazer isso na mão, com planilha e caderno, é receita certa pra bagunça e discussão na hora de fechar a conta.
+| Rota | Quem usa | O que faz |
+| --- | --- | --- |
+| `/painel` | Todos (TV da sala) | Relógio, blinds, premiação, últimas eliminações. Muda para a paleta verde nos intervalos. |
+| `/ranking` | Todos | Ranking anual, pódios com foto e a imagem do ranking para compartilhar. |
+| `/jogador` | Jogador | Inscrição (simples ou dupla), reentrada, add-on no intervalo, Pix e "Já paguei", prêmios e a aba **Minha área** (estatísticas do ano). |
+| `/controle` | Equipe | Relógio, estrutura de blinds, cadastro, lançamentos, configuração do torneio e divulgação no WhatsApp. |
+| `/controle/solicitacoes` | Financeiro | Aprova pedidos de compra e os "Já paguei" com comprovante. |
+| `/controle/fechamento` | Financeiro | Resumo do dinheiro, pagamento dos prêmios com comprovante, foto do top 3 e "Finalizar fechamento". |
+| `/controle/torneios-externos` | Admin | Torneios jogados fora do sistema, vinculados ao cadastro dos jogadores. |
+| `/controle/admins`, `/controle/historico` | Admin | Cargos (Dealer e Financeiro por torneio), códigos de redefinição de senha e histórico de ações. |
 
-O projeto foi criado sob medida para um torneio privado entre amigos, com o objetivo de facilitar todos os âmbitos possíveis da organização de um Main Event caseiro: desde o cronômetro de blind até a divisão final da premiação.
+## Regras importantes
 
-## O que a aplicação faz
+- **Cargos:** Administrador é fixo. Dealer (relógio, jogadores e eliminações) e Financeiro (lançamentos e aprovações) valem por torneio e dão desconto. Admin não tem desconto, a menos que tenha um desses cargos no torneio.
+- **Janelas de compra:** entrada e reentrada valem até o fim do 1º intervalo. O add-on só pode ser feito durante o 1º intervalo e é a última compra.
+- **Dinheiro:** todos os valores ficam em centavos. Prêmios e rake são sempre múltiplos de R$ 5. Os prêmios exibidos já descontam o rake.
+- **Sem devedores entre torneios:** o torneio não encerra enquanto houver saldo em aberto ou "Já paguei" pendente.
 
-- **Controle de blinds e nível**: cronômetro de torneio com blind/ante configuráveis e avanço automático de nível, com aviso sonoro (`app/api/audio`) para ninguém perder a hora da subida de blind.
-- **Gestão de jogadores**: cadastro com nome, apelido, telefone, e-mail, documento e observações, além do controle de status (ativo/eliminado), mesa e stack de fichas.
-- **Entradas, reentradas e addons**: registro de cada compra/recompra com valores próprios para entry, reentry e addon, refletindo automaticamente no prize pool.
-- **Financeiro do torneio**: cada movimentação vira uma transação (entrada, reentrada, addon, pagamento, estorno), com saldo por jogador (cobrado x pago) — o famoso "quem deve o quê" resolvido sozinho.
-- **Premiação automática**: cálculo da divisão de prêmios entre os classificados a partir do prize pool acumulado e do número de posições pagas.
-- **Painel público e painel de controle**: uma tela (`/painel`) pensada para ficar exibida na sala pros jogadores acompanharem blind, tempo e ranking, e outra (`/controle`) para o organizador operar tudo — administrar jogadores, lançar transações, pausar/retomar o relógio.
-- **Login administrativo**: acesso restrito para quem organiza o evento mexer nos dados do torneio (`/login`, `app/api/auth`).
+## Stack
 
-## Stack técnica
+- **Next.js** (App Router) + **React 19** + **Tailwind CSS**, com deploy na **Vercel** (região `gru1`, São Paulo).
+- **Supabase** (região `sa-east-1`): Postgres com RLS (o acesso é feito só pelo servidor, com a service role), Auth, Storage e Realtime (canal `baraiada-tournament`).
+- As operações de dinheiro são atômicas, feitas em funções SQL (`record_purchase`, `void_transaction`, `finish_tournament`). As migrações ficam em `supabase/migrations/`.
+- PWA instalável (`app/manifest.ts`, `public/sw.js`).
 
-- **Next.js 15 (App Router)** + **React 19**
-- **Supabase** como backend/banco de dados (com **Drizzle ORM** para schema e migrations)
-- **Tailwind CSS** + componentes baseados em **shadcn/ui**
-- Deploy contínuo na **Vercel**
+## Desenvolvimento
 
-## Contexto
-
-Ferramenta de uso interno, pensada para o torneio privado "Baraiada" entre amigos — não é um produto comercial, e sim uma solução sob medida para não deixar a organização do evento na mão da planilha e do WhatsApp.
+```bash
+npm install
+npm run dev      # requer SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY
+npm test         # testes dos cálculos de prêmio, rake, saldo e janelas de compra
+npm run build
+```
