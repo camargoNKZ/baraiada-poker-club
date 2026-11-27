@@ -17,6 +17,7 @@ type ExtractItem = { id: number; kind: string; quantity: number; totalAmount: nu
 type JogadorState = { profile: PlayerProfile; roleLabel: string; tournament: Tournament | null; player: PlayerRow | null; requests: PlayerRequest[]; accounting: Accounting; extract: ExtractItem[]; pool: number };
 
 const kindLabel: Record<string, string> = { register: 'Inscrição', entry: 'Entrada', reentry: 'Reentrada', addon: 'Add-on' };
+const requestLabel = (kind: string, quantity: number) => `${kindLabel[kind] ?? kind}${quantity > 1 && (kind === 'entry' || kind === 'reentry') ? ' dupla' : ''}`;
 const statusLabel: Record<string, { label: string; className: string }> = {
   pending: { label: 'Aguardando aprovação', className: 'bg-[#e3c578]/15 text-[#e3c578]' },
   approved: { label: 'Aprovado', className: 'bg-[#65d19e]/15 text-[#65d19e]' },
@@ -131,9 +132,12 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                     ) : (
                       <>
                         {/* Cada botão só aparece enquanto a ação está disponível. */}
-                        {state.tournament.rebuyOpen && (
-                          <Button disabled={sending || pendingKinds.has('reentry')} onClick={() => sendRequest('reentry')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> {pendingKinds.has('reentry') ? 'Reentrada solicitada' : `Solicitar reentrada (${money(state.tournament.reentryValue)})`}</Button>
-                        )}
+                        {state.tournament.rebuyOpen && (pendingKinds.has('reentry')
+                          ? <span className="flex items-center gap-2 text-sm text-[#e3c578]"><Clock3 className="size-4" /> Reentrada solicitada, aguardando aprovação.</span>
+                          : <>
+                            <Button disabled={sending} onClick={() => sendRequest('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Solicitar reentrada ({money(state.tournament.reentryValue)})</Button>
+                            <Button disabled={sending} onClick={() => sendRequest('reentry', 2)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Solicitar reentrada dupla ({money(state.tournament.reentryValue * 2)})</Button>
+                          </>)}
                         {state.tournament.addonOpen && state.player.addons < 1 && (
                           <Button disabled={sending || pendingKinds.has('addon')} onClick={() => sendRequest('addon')} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><Sparkles className="size-4" /> {pendingKinds.has('addon') ? 'Add-on solicitado' : `Solicitar add-on (${money(state.tournament.addonValue)})`}</Button>
                         )}
@@ -186,7 +190,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
               <div className="divide-y divide-white/6">
                 {state.requests.map((item) => {
                   const status = statusLabel[item.status] ?? statusLabel.pending;
-                  return <div key={item.id} className="flex items-center justify-between px-5 py-3 text-sm"><div><p className="font-medium text-[#dce5e1]">{kindLabel[item.kind] ?? item.kind}</p><p className="text-xs text-[#698179]">{new Date(item.requestedAt).toLocaleString('pt-BR')}</p></div><span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[.08em] ${status.className}`}>{status.label}</span></div>;
+                  return <div key={item.id} className="flex items-center justify-between px-5 py-3 text-sm"><div><p className="font-medium text-[#dce5e1]">{requestLabel(item.kind, item.quantity)}</p><p className="text-xs text-[#698179]">{new Date(item.requestedAt).toLocaleString('pt-BR')}</p></div><span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[.08em] ${status.className}`}>{status.label}</span></div>;
                 })}
                 {!state.requests.length && <div className="px-5 py-8 text-center text-sm text-[#60786f]">Suas solicitações vão aparecer aqui.</div>}
               </div>
