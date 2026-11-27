@@ -3,7 +3,7 @@
 import { Bookmark, Clock3, Save, SlidersHorizontal, Trash2, Wand2 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import type { BlindLevel } from '@/lib/blinds';
-import { PRESETS, suggestStructure } from '@/lib/blind-suggest';
+import { PRESETS, recommendedDepth, suggestStructure } from '@/lib/blind-suggest';
 
 type Template = { slot: number; name: string; levels: BlindLevel[]; updatedAt: number };
 type Mode = 'suggest' | 'models' | 'manual';
@@ -71,6 +71,9 @@ export function StructureSource({ current, onApply, manual, confirmReplace = fal
   }
 
   const hours = Number(input.hours);
+  const stackValue = Number(input.stack) || 0;
+  const range = recommendedDepth(hours || 3);
+  const fmt = (n: number) => n.toLocaleString('pt-BR');
   return (
     <div>
       <div className="flex flex-wrap gap-2">
@@ -80,18 +83,22 @@ export function StructureSource({ current, onApply, manual, confirmReplace = fal
       </div>
 
       {mode === 'suggest' && <div className="mt-4">
-        <p className="text-xs text-[#8da79e]">Escolha quanto tempo o torneio deve durar. A estrutura segue o padrão dos torneios ao vivo: começa com ~100 big blinds, sobe num ritmo constante, tem intervalo a cada ~1h30 e ante a partir do 4º nível.</p>
+        <p className="text-xs text-[#8da79e]">Escolha quanto tempo o torneio deve durar. A estrutura segue o padrão dos torneios ao vivo: stack inicial de 50 BB (turbo) a 150 BB (main event), subida num ritmo constante, intervalo a cada ~1h30 e ante a partir do 4º nível. Stacks comuns: 10.000, 20.000 ou 25.000.</p>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {PRESETS.map((p) => <button key={p.key} type="button" onClick={() => setInput({ ...input, hours: String(p.hours) })} className={`rounded-xl border p-3 text-left transition ${hours === p.hours ? 'border-[#d7b66a] bg-[#d7b66a]/12' : 'border-white/10 hover:bg-white/5'}`}><p className="text-sm font-semibold text-white">{p.label} · {p.hours}h</p><p className="mt-0.5 text-[11px] text-[#8da79e]">{p.detail}</p></button>)}
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <label className={labelClass}>Duração desejada (horas)<input type="number" min="1" max="12" step="any" className={fieldClass} value={input.hours} onChange={(e) => setInput({ ...input, hours: e.target.value })} /></label>
           <label className={labelClass}>Jogadores esperados<input type="number" min="2" max="500" className={fieldClass} value={input.players} onChange={(e) => setInput({ ...input, players: e.target.value })} /></label>
-          <label className={labelClass}>Fichas iniciais (stack)<input type="number" min="100" step="any" className={fieldClass} value={input.stack} onChange={(e) => setInput({ ...input, stack: e.target.value })} /></label>
+          <label className={labelClass}>Fichas iniciais (stack)<input type="number" min="100" step="any" className={fieldClass} value={input.stack} onChange={(e) => setInput({ ...input, stack: e.target.value })} /><span className={`mt-1 block text-[11px] font-semibold normal-case tracking-normal ${suggestion.depthBB >= range.min && suggestion.depthBB <= range.max ? 'text-[#65d19e]' : 'text-[#e3c578]'}`}>= {suggestion.depthBB} BB · recomendado para {range.label}: {range.min}–{range.max} BB</span></label>
         </div>
         <div className="mt-3 rounded-xl border border-[#d7b66a]/25 bg-[#d7b66a]/[.06] p-4">
           <p className="text-sm font-semibold text-white">{suggestion.plannedLevels} níveis de {suggestion.levelMinutes} min · intervalo de {suggestion.breakMinutes} min a cada {suggestion.levelsPerBreak} níveis</p>
           <p className="mt-1 text-xs text-[#c7d2cd]">Blinds de {suggestion.startBlinds} até {suggestion.endBlinds} no tempo previsto (+3 níveis extras caso demore) · sobe ~{suggestion.increasePercent}% por nível · ~{suggestion.totalChips.toLocaleString('pt-BR')} fichas em jogo contando reentradas.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-lg border border-white/8 bg-black/15 px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#d7b66a]">Fichas por jogador ({fmt(stackValue)})</p><p className="mt-1 text-xs text-white">{suggestion.chips.map((c) => `${c.count} × ${fmt(c.value)}`).join(' · ')}</p><p className="mt-0.5 text-[11px] text-[#8da79e]">{suggestion.chips.reduce((sum, c) => sum + c.count, 0)} fichas em {suggestion.chips.length} cores. Tire a cor menor da mesa quando o small blind não precisar mais dela.</p></div>
+            <div className="rounded-lg border border-white/8 bg-black/15 px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#d7b66a]">Reentrada e add-on</p><p className="mt-1 text-xs text-white">Reentrada: {fmt(stackValue)} fichas (o mesmo stack)</p><p className="text-xs text-white">Add-on: {fmt(suggestion.addon.min)} a {fmt(suggestion.addon.max)} fichas</p><p className="mt-0.5 text-[11px] text-[#8da79e]">O add-on costuma dar de 50% a 100% do stack inicial.</p></div>
+          </div>
           <p className="mt-2 font-mono text-[11px] leading-relaxed text-[#8da79e]">{suggestion.levels.map((l) => l.kind === 'break' ? '☕' : `${l.smallBlind}/${l.bigBlind}`).join('  ·  ')}</p>
           <button type="button" onClick={() => apply(suggestion.levels, `${input.hours}h`)} className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-[#d7b66a] px-4 text-sm font-bold text-[#14251e] hover:bg-[#e5c779]"><Wand2 className="size-4" /> Usar esta estrutura</button>
         </div>
