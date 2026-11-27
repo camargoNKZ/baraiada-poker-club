@@ -17,9 +17,10 @@ export async function POST(request: Request) {
     const photo = fileFrom(form, 'photo');
     if (!tournamentId || !photo) return Response.json({ error: 'Escolha a foto do top 3.' }, { status: 400 });
     const db = getSupabase();
-    const t = await db.from('tournaments').select('id, name, top3_photo_path').eq('id', tournamentId).maybeSingle();
+    const t = await db.from('tournaments').select('id, name, top3_photo_path, closed_at').eq('id', tournamentId).maybeSingle();
     if (t.error) throw t.error;
     if (!t.data) return Response.json({ error: 'Torneio não encontrado.' }, { status: 400 });
+    if (t.data.closed_at) return Response.json({ error: 'O fechamento deste torneio já foi finalizado e não pode mais ser alterado.' }, { status: 400 });
     const path = await uploadFile(db, PHOTOS_BUCKET, `top3/${tournamentId}`, photo, 'photo');
     const updated = await db.from('tournaments').update({ top3_photo_path: path }).eq('id', tournamentId);
     if (updated.error) throw updated.error;
