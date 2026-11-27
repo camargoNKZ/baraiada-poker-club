@@ -168,7 +168,7 @@ export function AdminSelfPlay() {
 
           {state.player && (
             <section className="panel rounded-[22px] border border-white/8">
-              <div className="border-b border-white/8 p-5"><div className="flex items-center justify-between gap-2"><h2 className="text-sm font-semibold text-white">Meus gastos</h2><a href="/minha-area" className="text-xs font-semibold text-[#d7b66a] hover:underline">Minha área →</a></div></div>
+              <div className="border-b border-white/8 p-5"><h2 className="text-sm font-semibold text-white">Meus gastos</h2></div>
               <div className="grid grid-cols-3 gap-3 p-5">
                 <div><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Cobrado</p><p className="mt-1 font-mono text-sm font-semibold text-white">{money(state.accounting?.charged ?? 0)}</p></div>
                 <div><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Pago</p><p className="mt-1 font-mono text-sm font-semibold text-[#65d19e]">{money(state.accounting?.paid ?? 0)}</p></div>
