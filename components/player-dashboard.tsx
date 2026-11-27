@@ -43,9 +43,9 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
   useEffect(() => { void refresh(); }, [refresh]);
   useLiveRefresh(refresh);
 
-  async function sendRequest(kind: string) {
+  async function sendRequest(kind: string, quantity = 1) {
     setSending(true); setError('');
-    const response = await fetch('/api/jogador/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind }) });
+    const response = await fetch('/api/jogador/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, quantity }) });
     const data = await response.json() as { ok?: boolean; error?: string };
     setSending(false);
     if (!response.ok) { setError(data.error || 'Não foi possível enviar a solicitação.'); return; }
@@ -103,12 +103,15 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
               </div>
 
               {!state.player ? (
-                pendingKinds.has('register') ? (
-                  <div className="mt-5 flex items-center gap-2 rounded-xl bg-[#e3c578]/10 px-4 py-3 text-sm text-[#e3c578]"><Clock3 className="size-4" /> Sua inscrição foi enviada e está aguardando aprovação de um administrador.</div>
+                pendingKinds.has('register') || pendingKinds.has('entry') ? (
+                  <div className="mt-5 flex items-center gap-2 rounded-xl bg-[#e3c578]/10 px-4 py-3 text-sm text-[#e3c578]"><Clock3 className="size-4" /> Sua entrada foi solicitada e está aguardando aprovação. Ao ser aprovada, você já fica inscrito no torneio.</div>
                 ) : (
                   <div className="mt-5">
-                    <p className="mb-3 text-xs text-[#789087]">Você ainda não está inscrito neste torneio.</p>
-                    {state.tournament.entryOpen && <Button disabled={sending} onClick={() => sendRequest('register')} className="h-11 bg-[#d7b66a] px-5 font-bold text-[#14251e] hover:bg-[#e5c779]"><UserPlus className="size-4" /> Inscrever-se no torneio</Button>}
+                    <p className="mb-3 text-xs text-[#789087]">{state.tournament.entryOpen ? 'Você ainda não está no torneio. Solicite sua entrada para se inscrever.' : 'Você não está inscrito neste torneio.'}</p>
+                    {state.tournament.entryOpen && <div className="flex flex-wrap gap-2">
+                      <Button disabled={sending} onClick={() => sendRequest('entry', 1)} className="h-11 bg-[#d7b66a] px-5 font-bold text-[#14251e] hover:bg-[#e5c779]"><UserPlus className="size-4" /> Solicitar entrada ({money(state.tournament.entryValue)})</Button>
+                      <Button disabled={sending} onClick={() => sendRequest('entry', 2)} className="h-11 bg-[#d7b66a] px-5 font-bold text-[#14251e] hover:bg-[#e5c779]"><UserPlus className="size-4" /> Solicitar entrada dupla ({money(state.tournament.entryValue * 2)})</Button>
+                    </div>}
                   </div>
                 )
               ) : (
@@ -120,7 +123,11 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                   </div>
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-white/8 pt-5">
                     {state.player.entries < 1 ? (
-                      state.tournament.entryOpen && <Button disabled={sending || pendingKinds.has('entry')} onClick={() => sendRequest('entry')} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> {pendingKinds.has('entry') ? 'Entrada solicitada' : `Solicitar entrada (${money(state.tournament.entryValue)})`}</Button>
+                      pendingKinds.has('entry') ? <span className="flex items-center gap-2 text-sm text-[#e3c578]"><Clock3 className="size-4" /> Entrada solicitada, aguardando aprovação.</span>
+                      : state.tournament.entryOpen && <>
+                        <Button disabled={sending} onClick={() => sendRequest('entry', 1)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> Solicitar entrada ({money(state.tournament.entryValue)})</Button>
+                        <Button disabled={sending} onClick={() => sendRequest('entry', 2)} className="h-10 bg-[#d7b66a] px-4 font-bold text-[#14251e] hover:bg-[#e5c779]"><CircleDollarSign className="size-4" /> Solicitar entrada dupla ({money(state.tournament.entryValue * 2)})</Button>
+                      </>
                     ) : (
                       <>
                         {/* Cada botão só aparece enquanto a ação está disponível. */}
