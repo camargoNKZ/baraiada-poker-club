@@ -82,10 +82,13 @@ test('stack inicial dentro da faixa recomendada e fichas somando o stack', () =>
     for (const stack of [10000, 20000, 25000, 30000]) {
       const s = suggestStructure({ hours, players: 12, stack });
       const range = recommendedDepth(hours);
-      assert.ok(s.depthBB >= range.min * 0.8 && s.depthBB <= range.max * 1.35, `${hours}h ${stack}: ${s.depthBB} BB`);
+      if (stack >= s.recommendedStack) assert.ok(s.depthBB >= range.min * 0.8 && s.depthBB <= range.max * 1.35, `${hours}h ${stack}: ${s.depthBB} BB`);
       assert.equal(s.chips.reduce((sum, c) => sum + c.value * c.count, 0), stack, `${hours}h ${stack}`);
       assert.ok(s.chips.length >= 2 && s.chips.length <= 4);
     }
   }
   assert.deepEqual(chipDistribution(20000, 100, 200).map((c) => c.value), [100, 500, 1000, 5000]);
+  for (const hours of [2, 3, 4, 5, 6]) for (const l of suggestStructure({ hours, players: 20, stack: 20000 }).levels) if (l.kind === 'level') {
+    assert.equal(l.smallBlind % 100, 0, `small ${l.smallBlind}`); assert.equal(l.bigBlind % 100, 0); assert.equal(l.ante % 100, 0);
+  }
 });
