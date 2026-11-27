@@ -190,7 +190,10 @@ export function ControlDashboard({ previewCan }: { previewCan?: Permissions } = 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h3 className="text-sm font-semibold text-white">Rake</h3><p className="mt-1 text-xs text-[#718a81]">Percentual descontado do total arrecadado antes da premiação. O valor é arredondado para reais terminados em 0 ou 5.</p></div>
               <div className="flex items-center gap-3">
-                <button type="button" role="switch" aria-checked={rake.enabled} aria-label="Descontar rake" onClick={() => setRake({ ...rake, enabled: !rake.enabled })} className={`relative h-7 w-12 shrink-0 rounded-full border transition ${rake.enabled ? 'border-[#d7b66a] bg-[#d7b66a]' : 'border-white/15 bg-white/10'}`}><span className={`absolute top-0.5 size-[22px] rounded-full bg-[#0d0c0a] shadow transition-all ${rake.enabled ? 'left-[22px]' : 'left-0.5'}`} /></button>
+                <button type="button" role="switch" aria-checked={rake.enabled} aria-label="Descontar rake" onClick={() => setRake({ ...rake, enabled: !rake.enabled })}
+                  style={{ position: 'relative', width: 44, height: 24, flexShrink: 0, borderRadius: 999, border: 'none', padding: 0, cursor: 'pointer', background: rake.enabled ? '#c9a45a' : 'rgb(255 255 255 / 16%)', transition: 'background 160ms ease' }}>
+                  <span aria-hidden style={{ position: 'absolute', top: 3, left: 3, width: 18, height: 18, borderRadius: 999, background: rake.enabled ? '#171008' : '#d8cfb8', boxShadow: '0 1px 3px rgb(0 0 0 / 40%)', transform: rake.enabled ? 'translateX(20px)' : 'translateX(0)', transition: 'transform 160ms ease, background 160ms ease' }} />
+                </button>
                 <span className="text-xs font-semibold text-[#c7d2cd]">{rake.enabled ? 'Descontar rake' : 'Sem rake'}</span>
                 {rake.enabled && <label className="flex items-center gap-1"><input aria-label="Percentual do rake" type="number" min="0.5" max="50" step="0.5" value={rake.percent} onChange={(e) => setRake({ ...rake, percent: e.target.value })} className="h-9 w-20 rounded-lg border border-white/10 bg-[#081f18] px-2 text-right font-mono text-sm text-white outline-none focus:border-[#d7b66a]/60" /><span className="text-xs text-[#789087]">%</span></label>}
               </div>
