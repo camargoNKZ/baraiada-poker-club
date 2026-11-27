@@ -6,7 +6,7 @@ type Db = ReturnType<typeof getSupabase>;
 
 export type ClosingResult = { id: number; position: number; playerName: string; points: number; prize: number; paidAt: number | null; method: string; receiptUrl: string | null };
 export type Closing = {
-  tournament: { id: number; name: string; status: string; finishedAt: number | null; rakeEnabled: boolean; rakePercent: number; closedAt: number | null; closedBy: string };
+  tournament: { id: number; name: string; status: string; finishedAt: number | null; rakeEnabled: boolean; rakePercent: number; closedAt: number | null; closedBy: string; external: boolean };
   summary: { gross: number; rake: number; prizePool: number; received: number; outstanding: number; prizesPaid: number; prizesPending: number };
   results: ClosingResult[];
   photoUrl: string | null;
@@ -15,7 +15,7 @@ export type Closing = {
 
 // Fechamento de um torneio: dinheiro arrecadado, rake, premiação, recebimentos e prêmios pagos.
 export async function loadClosing(db: Db, tournamentId: number): Promise<Closing | null> {
-  const t = await db.from('tournaments').select('id, name, status, finished_at, rake_enabled, rake_percent, top3_photo_path, closed_at, closed_by').eq('id', tournamentId).maybeSingle();
+  const t = await db.from('tournaments').select('id, name, status, finished_at, rake_enabled, rake_percent, top3_photo_path, closed_at, closed_by, external, external_gross').eq('id', tournamentId).maybeSingle();
   if (t.error) throw t.error;
   if (!t.data) return null;
   const [txs, results] = await Promise.all([
@@ -30,6 +30,8 @@ export async function loadClosing(db: Db, tournamentId: number): Promise<Closing
     if (tx.kind === 'payment') received += Math.abs(Number(tx.total_amount));
     else gross += Number(tx.total_amount);
   }
+  // Torneio externo não tem lançamentos: usa o total arrecadado informado no registro (já recebido).
+  if (t.data.external) { gross = Number(t.data.external_gross ?? 0); received = gross; }
   const rake = rakeAmount(gross, { rakeEnabled: Boolean(t.data.rake_enabled), rakePercent: Number(t.data.rake_percent ?? 0) });
   const rows = await Promise.all((results.data ?? []).map(async (r) => ({
     id: Number(r.id), position: r.position, playerName: r.player_name, points: r.points, prize: r.prize_amount,
@@ -50,7 +52,7 @@ export async function loadClosing(db: Db, tournamentId: number): Promise<Closing
     closedBy = (who.data?.name as string | undefined) ?? '';
   }
   return {
-    tournament: { id: t.data.id, name: t.data.name, status: t.data.status, finishedAt: t.data.finished_at ?? null, rakeEnabled: Boolean(t.data.rake_enabled), rakePercent: Number(t.data.rake_percent ?? 0), closedAt: t.data.closed_at ?? null, closedBy },
+    tournament: { id: t.data.id, name: t.data.name, status: t.data.status, finishedAt: t.data.finished_at ?? null, rakeEnabled: Boolean(t.data.rake_enabled), rakePercent: Number(t.data.rake_percent ?? 0), closedAt: t.data.closed_at ?? null, closedBy, external: Boolean(t.data.external) },
     summary: { gross, rake, prizePool: gross - rake, received, outstanding: gross - received, prizesPaid, prizesPending: prizesTotal - prizesPaid },
     results: rows,
     photoUrl: photoUrl(t.data.top3_photo_path),

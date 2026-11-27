@@ -10,5 +10,5 @@ export default async function FechamentoPage({ searchParams }: { searchParams: P
   if (!admin) redirect(await nonStaffRedirectPath());
   const { viewAs, can } = resolveViewAs(admin, (await searchParams).ver);
   if (!can.finance) redirect(viewAs === 'admin' ? '/controle' : `/controle?ver=${viewAs}`);
-  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={can} viewAs={viewAs} canPreview={admin.isAdmin} /><ClosingPanel /></main>;
+  return <main className="min-h-screen bg-background text-foreground"><SiteHeader adminEmail={admin.email} permissions={can} viewAs={viewAs} canPreview={admin.isAdmin} /><ClosingPanel canRegisterExternal={admin.isAdmin && viewAs === 'admin'} /></main>;
 }

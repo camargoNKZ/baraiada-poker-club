@@ -6,7 +6,7 @@ import { useLiveRefresh } from '@/hooks/use-live-refresh';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/compress-image';
 import type { Closing, ClosingResult } from '@/lib/closing';
 
-type TournamentItem = { id: number; name: string; status: string; finished_at: number | null };
+type TournamentItem = { id: number; name: string; status: string; finished_at: number | null; external?: boolean };
 
 const money = (cents: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 const when = (ms: number) => new Date(ms).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -20,7 +20,7 @@ async function readyFile(file: File | null) {
 }
 
 // Fechamento do torneio: dinheiro do torneio, pagamento dos prêmios (com comprovante) e foto do top 3.
-export function ClosingPanel() {
+export function ClosingPanel({ canRegisterExternal = false }: { canRegisterExternal?: boolean } = {}) {
   const [tournaments, setTournaments] = useState<TournamentItem[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [closing, setClosing] = useState<Closing | null>(null);
@@ -98,9 +98,10 @@ export function ClosingPanel() {
     <div className="baraiada-control mx-auto max-w-[1500px] px-5 py-7 lg:px-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#d7b66a]">Financeiro</p><h1 className="font-heading text-3xl font-bold uppercase tracking-[0.035em] text-[#f0e1b5]">Fechamento do torneio</h1><p className="mt-2 text-sm text-[#789087]">Resumo do dinheiro, pagamento dos prêmios e foto do top 3.</p></div>
+        <div className="flex flex-wrap items-center gap-2">{canRegisterExternal && <a href="/controle/torneios-externos" className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-white/10 px-3 text-xs font-semibold text-[#c7d2cd] hover:bg-white/5">+ Torneio externo</a>}
         <select aria-label="Torneio" value={selected ?? ''} onChange={(event) => setSelected(Number(event.target.value))} className="h-10 rounded-xl border border-white/10 bg-[#081f18] px-3 text-sm text-white sm:w-80">
-          {tournaments.map((t) => <option key={t.id} value={t.id}>{t.name} #{t.id}{t.status === 'active' ? ' (em andamento)' : t.finished_at ? ` · ${new Date(t.finished_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : ''}</option>)}
-        </select>
+          {tournaments.map((t) => <option key={t.id} value={t.id}>{t.name} #{t.id}{t.external ? ' (externo)' : ''}{t.status === 'active' ? ' (em andamento)' : t.finished_at ? ` · ${new Date(t.finished_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}` : ''}</option>)}
+        </select></div>
       </div>
       {error && <div className="mb-4 rounded-xl border border-[#d88383]/25 bg-[#d88383]/10 px-4 py-3 text-sm text-[#e5a0a0]">{error}</div>}
       {!closing ? <p className="py-16 text-center text-sm text-[#789087]">{error ? '' : 'Carregando…'}</p> : <>
