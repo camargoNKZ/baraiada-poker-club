@@ -100,7 +100,7 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
             <section className="panel mb-4 rounded-[22px] border border-[#c9a45a]/20 p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-[10px] font-bold uppercase tracking-[.14em] text-[#d7b66a]">{state.tournament.type}</p><h1 className="mt-1 break-words text-xl font-semibold">{state.tournament.name}</h1></div>
-                <div className="rounded-xl border border-white/8 bg-black/10 px-4 py-2 text-right"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Pot até o momento</p><p className="text-lg font-bold text-[#e3c578]">{money(state.pool)}</p></div>
+                <div className="rounded-xl border border-white/8 bg-black/10 px-4 py-2 text-right"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">Premiação até o momento</p><p className="text-lg font-bold text-[#e3c578]">{money(state.pool)}</p></div>
               </div>
 
               {!state.player ? (
