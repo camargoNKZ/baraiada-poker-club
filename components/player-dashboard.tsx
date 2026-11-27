@@ -145,7 +145,8 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                     ) : (
                       <>
                         {/* Cada botão só aparece enquanto a ação está disponível. */}
-                        {state.tournament.rebuyOpen && (pendingKinds.has('reentry')
+                        {/* O add-on é a última compra: depois de pedido ou feito, some a reentrada. */}
+                        {state.tournament.rebuyOpen && state.player.addons < 1 && !pendingKinds.has('addon') && (pendingKinds.has('reentry')
                           ? <span className="flex items-center gap-2 text-sm text-[#e3c578]"><Clock3 className="size-4" /> Reentrada solicitada, aguardando aprovação.</span>
                           : <>
                             <Button disabled={sending} onClick={() => sendRequest('reentry', 1)} variant="outline" className="h-10 border-white/10 bg-white/[.03] px-4 text-white hover:bg-white/8"><CircleDollarSign className="size-4" /> Solicitar reentrada ({money(state.tournament.reentryValue)})</Button>

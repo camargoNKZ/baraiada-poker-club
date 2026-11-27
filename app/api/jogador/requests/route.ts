@@ -43,6 +43,12 @@ export async function POST(request: Request) {
       if (kind === 'addon' && Number(player.addons) >= 1) return Response.json({ error: 'Você já lançou o add-on deste torneio.' }, { status: 400 });
     }
 
+    // O add-on é a última compra: depois de pedido ou lançado, não dá para pedir mais nada.
+    if (player && Number(player.addons) >= 1) return Response.json({ error: 'Você já fez o add-on: não há mais compras neste torneio.' }, { status: 400 });
+    const addonPending = await db.from('player_requests').select('id').eq('tournament_id', tournament.id).eq('profile_id', profile.id).eq('kind', 'addon').eq('status', 'pending').limit(1).maybeSingle();
+    if (addonPending.error) throw addonPending.error;
+    if (addonPending.data) return Response.json({ error: 'Seu add-on já foi solicitado: não há mais compras neste torneio.' }, { status: 400 });
+
     const pendingResult = await db.from('player_requests').select('id').eq('tournament_id', tournament.id).eq('profile_id', profile.id).in('kind', kind === 'entry' || kind === 'register' ? ['entry', 'register'] : [kind]).eq('status', 'pending').limit(1).maybeSingle();
     if (pendingResult.error) throw pendingResult.error;
     if (pendingResult.data) return Response.json({ error: 'Você já tem uma solicitação desse tipo aguardando aprovação.' }, { status: 400 });
