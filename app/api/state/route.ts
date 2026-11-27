@@ -5,7 +5,7 @@ import { FORBIDDEN_MESSAGE, getAdminUser, type Permissions } from '@/lib/admin-a
 import { clampIndex, clockAt, levelsOf, purchaseBlockedReason, sanitizeStructure } from '@/lib/blinds';
 import { getSupabase } from '@/lib/supabase-server';
 import { errorResponse, throwIfError } from '@/lib/db-errors';
-import { defaultTournament, payouts, pointsForPosition, prizePool, rakeAmount, validPercentages } from '@/lib/tournament';
+import { defaultTournament, payoutPercentagesOf, payouts, pointsForPosition, prizePool, rakeAmount, validPercentages } from '@/lib/tournament';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,21 +54,22 @@ async function lastTournamentTemplate(db: Db) {
 async function loadActiveTournamentRow(db: Db) {
   const activeResult = await db.from('tournaments').select('*').eq('status', 'active').maybeSingle();
   if (activeResult.error) throw activeResult.error;
-  if (activeResult.data) return activeResult.data;
+  // Nunca cria torneio sozinho: um novo só nasce pelo "Começar novo torneio", já configurado.
+  return activeResult.data ?? null;
+}
 
-  const countResult = await db.from('tournaments').select('id', { count: 'exact', head: true });
-  if (countResult.error) throw countResult.error;
-  if ((countResult.count ?? 0) > 0) return null;
-
-  const inserted = await db.from('tournaments').insert({ ...tournamentToRow(defaultTournament), status: 'active' }).select('*').single();
-  if (inserted.error) throw inserted.error;
-  return inserted.data;
+// Configuração sugerida para o próximo torneio (a do último, ou o padrão), usada no formulário de início.
+async function nextTournamentTemplate(db: Db) {
+  const last = await db.from('tournaments').select('*').order('id', { ascending: false }).limit(1).maybeSingle();
+  if (last.error) throw last.error;
+  const t = last.data ? tournamentFromRow(last.data) : { ...defaultTournament };
+  return { name: '', type: t.type, entryValue: t.entryValue, reentryValue: t.reentryValue, addonValue: t.addonValue, payoutPercentages: payoutPercentagesOf(t), rakeEnabled: t.rakeEnabled, rakePercent: t.rakePercent, pixKey: t.pixKey, blindLevels: levelsOf(t) };
 }
 
 async function loadState(privateData = false) {
   const db = getSupabase();
   const tournamentRow = await loadActiveTournamentRow(db);
-  if (!tournamentRow) return { tournament: null, players: [], transactions: [], serverNow: Date.now(), needsNewTournament: true };
+  if (!tournamentRow) return { tournament: null, players: [], transactions: [], serverNow: Date.now(), needsNewTournament: true, template: privateData ? await nextTournamentTemplate(db) : null };
 
   const tournament = tournamentFromRow(tournamentRow);
   const playerResult = await db.from('players').select('*').eq('tournament_id', tournament.id).order('created_at', { ascending: true });
@@ -110,7 +111,29 @@ export async function POST(request: Request) {
       const existing = await db.from('tournaments').select('id').eq('status', 'active').maybeSingle();
       if (existing.error) throw existing.error;
       if (existing.data) return Response.json({ error: 'Já existe um torneio em andamento. Encerre-o antes de iniciar um novo.' }, { status: 400 });
-      const created = await db.from('tournaments').insert({ ...(await lastTournamentTemplate(db)), status: 'active' }).select('id, name').single();
+      // O torneio nasce já configurado pelo formulário de início (nome obrigatório).
+      const name = String(body.name ?? '').trim().slice(0, 80);
+      if (!name) return Response.json({ error: 'Informe o nome do torneio.' }, { status: 400 });
+      const cents = (value: unknown) => Math.max(0, Math.round(Number(value) || 0));
+      const levels = sanitizeStructure(body.levels);
+      if (!levels.some((item) => item.kind === 'level')) return Response.json({ error: 'Monte a estrutura de blinds com pelo menos um nível.' }, { status: 400 });
+      const percentages = Array.isArray(body.payoutPercentages) ? body.payoutPercentages.map((value) => Math.round(Number(value) * 100) / 100) : [];
+      if (!validPercentages(percentages)) return Response.json({ error: 'Os percentuais da premiação precisam somar 100% (de 1 a 20 posições).' }, { status: 400 });
+      const rakeEnabled = Boolean(body.rakeEnabled);
+      const rakePercent = Math.max(0, Math.min(50, Math.round(Number(body.rakePercent) * 100) / 100 || 0));
+      if (rakeEnabled && !(rakePercent > 0)) return Response.json({ error: 'Informe o percentual do rake (maior que 0 e até 50%).' }, { status: 400 });
+      const first = levels.find((item) => item.kind === 'level')!;
+      const created = await db.from('tournaments').insert({
+        ...(await lastTournamentTemplate(db)),
+        name, type: String(body.type || 'Reentrada ilimitada').slice(0, 40),
+        entry_value: cents(body.entryValue), reentry_value: cents(body.reentryValue), addon_value: cents(body.addonValue),
+        payout_places: percentages.length, payout_percentages: percentages,
+        rake_enabled: rakeEnabled, rake_percent: rakeEnabled ? rakePercent : 0,
+        pix_key: String(body.pixKey ?? '').trim().slice(0, 140),
+        blind_levels: levels, current_level: 0, timer_started_at: null, timer_paused_seconds: levels[0].durationMinutes * 60,
+        level_minutes: first.durationMinutes, small_blind: first.smallBlind, big_blind: first.bigBlind, ante: first.ante,
+        updated_at: Date.now(), status: 'active',
+      }).select('id, name').single();
       if (created.error) throw created.error;
       audit = { tournamentId: created.data.id, action: 'newTournament', summary: `Iniciou o torneio “${created.data.name}”` };
       return respond();
