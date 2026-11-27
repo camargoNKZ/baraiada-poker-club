@@ -117,8 +117,8 @@ export function PlayerDashboard({ profile }: { profile: PlayerProfile }) {
                 )
               ) : (
                 <>
-                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {[['Status', state.player.status === 'active' ? 'Em jogo' : state.player.status === 'eliminated' ? 'Eliminado' : 'Aguardando entrada'], ['Fichas', state.player.chips.toLocaleString('pt-BR')], ['Mesa', state.player.tableNo || '—'], ['Lançamentos', `${state.player.entries}E · ${state.player.reentries}R · ${state.player.addons}A`]].map(([label, value]) => (
+                  <div className="mt-5 grid grid-cols-3 gap-3">
+                    {[['Status', state.player.status === 'active' ? 'Em jogo' : state.player.status === 'eliminated' ? 'Eliminado' : 'Aguardando entrada'], ['Mesa', state.player.tableNo || '—'], ['Lançamentos', `${state.player.entries}E · ${state.player.reentries}R · ${state.player.addons}A`]].map(([label, value]) => (
                       <div key={label} className="rounded-xl border border-white/8 bg-black/10 p-3"><p className="text-[9px] font-bold uppercase tracking-[.12em] text-[#6f887f]">{label}</p><p className="mt-1 text-sm font-semibold text-[#e7ece9]">{value}</p></div>
                     ))}
                   </div>
