@@ -63,7 +63,7 @@ export function SiteHeader({ adminEmail, permissions, viewAs = 'admin', canPrevi
 
         <nav aria-label="Áreas do sistema" className="hidden items-center rounded-full border border-white/8 bg-white/[0.035] p-1 xl:flex">
           {navItems.map(({ href, label, icon: Icon, external }) => (
-            <Link key={href} href={linkFor(href)} target={external ? '_blank' : undefined} className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Icon className="size-3.5" /> {label} {external && <ExternalLink className="hidden size-3 sm:block" />}</Link>
+            <Link key={href} href={linkFor(href)} target={external ? '_blank' : undefined} className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-2 text-xs 2xl:gap-2 2xl:px-3 font-semibold transition ${pathname === href ? 'bg-[#c9a45a] text-[#171008]' : 'text-[#a48e6a] hover:text-[#f0e1b5]'}`}><Icon className="size-3.5" /> {label} {external && <ExternalLink className="hidden size-3 2xl:block" />}</Link>
           ))}
         </nav>
 
