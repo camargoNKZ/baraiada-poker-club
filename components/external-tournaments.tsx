@@ -6,18 +6,19 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { compressImage, MAX_UPLOAD_BYTES } from '@/lib/compress-image';
 import { pointsForPosition, rakeAmount } from '@/lib/tournament';
 
-type ExternalTournament = { id: number; name: string; date: number; photoUrl: string | null; gross: number; rake: number; rakePercent: number; results: { position: number; playerName: string; points: number; prize: number }[] };
-type Row = { playerName: string; prize: string };
+type ExternalTournament = { id: number; name: string; date: number; photoUrl: string | null; gross: number; rake: number; rakePercent: number; results: { position: number; playerName: string; points: number; prize: number; linked: boolean }[] };
+type Row = { playerName: string; prize: string; profileId: string };
+type Person = { id: string; name: string };
 
 const money = (cents: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100);
 const fieldClass = 'mt-2 h-10 w-full rounded-xl border border-white/10 bg-[#081f18] px-3 text-sm text-white outline-none placeholder:text-[#526960] focus:border-[#d7b66a]/60';
 const labelClass = 'text-[10px] font-bold uppercase tracking-[0.13em] text-[#789087]';
-const emptyRows = (): Row[] => [{ playerName: '', prize: '' }, { playerName: '', prize: '' }, { playerName: '', prize: '' }];
+const emptyRows = (): Row[] => [{ playerName: '', prize: '', profileId: '' }, { playerName: '', prize: '', profileId: '' }, { playerName: '', prize: '', profileId: '' }];
 
 // Registro de torneios que aconteceram fora do sistema: contam no ranking anual e nos pódios.
 export function ExternalTournaments() {
   const [list, setList] = useState<ExternalTournament[] | null>(null);
-  const [playerNames, setPlayerNames] = useState<string[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
   const [form, setForm] = useState({ name: '', date: '', gross: '', rakeEnabled: false, rakePercent: '' });
   const [rows, setRows] = useState<Row[]>(emptyRows);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -27,9 +28,9 @@ export function ExternalTournaments() {
 
   const load = useCallback(async () => {
     const response = await fetch('/api/external-tournaments', { cache: 'no-store' });
-    const data = await response.json() as { tournaments?: ExternalTournament[]; playerNames?: string[]; error?: string };
+    const data = await response.json() as { tournaments?: ExternalTournament[]; people?: Person[]; error?: string };
     if (!response.ok) { setError(data.error || 'Não foi possível carregar.'); return; }
-    setList(data.tournaments ?? []); setPlayerNames(data.playerNames ?? []);
+    setList(data.tournaments ?? []); setPeople(data.people ?? []);
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -50,7 +51,7 @@ export function ExternalTournaments() {
       const body = new FormData();
       body.set('name', form.name); body.set('date', form.date);
       body.set('gross', String(grossCents)); body.set('rakeEnabled', String(form.rakeEnabled)); body.set('rakePercent', form.rakePercent || '0');
-      body.set('results', JSON.stringify(filled.map((r) => ({ playerName: r.playerName, prize: Math.round(Number(r.prize) * 100) || 0 }))));
+      body.set('results', JSON.stringify(filled.map((r) => ({ playerName: r.playerName, profileId: r.profileId, prize: Math.round(Number(r.prize) * 100) || 0 }))));
       if (photo) { const ready = await compressImage(photo); if (ready.size > MAX_UPLOAD_BYTES) throw new Error('A foto passa de 4 MB.'); body.set('photo', ready); }
       const response = await fetch('/api/external-tournaments', { method: 'POST', body });
       const data = await response.json() as { tournaments?: ExternalTournament[]; error?: string };
@@ -89,13 +90,13 @@ export function ExternalTournaments() {
 
         <div className="mt-6 border-t border-white/8 pt-5">
           <h2 className="text-sm font-semibold text-white">Classificação</h2>
-          <p className="mt-1 text-xs text-[#718a81]">Do campeão para baixo. Escolha um jogador cadastrado (o nome sai igual no ranking) ou digite o nome. Prêmio é opcional.</p>
-          <datalist id="external-player-names">{playerNames.map((n) => <option key={n} value={n} />)}</datalist>
+          <p className="mt-1 text-xs text-[#718a81]">Do campeão para baixo. Escolha o jogador cadastrado na lista para o torneio aparecer na Minha área dele. Quem não tem cadastro pode ser digitado: conta no ranking, mas não fica vinculado. Prêmio é opcional.</p>
+          <datalist id="external-player-names">{people.map((p) => <option key={p.id} value={p.name} />)}</datalist>
           <ol className="mt-3 grid gap-2">
             {rows.map((row, index) => (
-              <li key={index} className="flex items-center gap-2">
+              <li key={index} className="flex items-start gap-2">
                 <span className={`grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold ${index < 3 ? 'bg-[#d7b66a] text-[#14251e]' : 'bg-white/8 text-[#9ab0a8]'}`}>{index + 1}º</span>
-                <input list="external-player-names" aria-label={`Jogador do ${index + 1}º lugar`} placeholder="Jogador" value={row.playerName} onChange={(e) => setRows(rows.map((r, i) => i === index ? { ...r, playerName: e.target.value } : r))} className="h-9 min-w-0 flex-1 rounded-lg border border-white/10 bg-[#081f18] px-3 text-sm text-white outline-none focus:border-[#d7b66a]/60" />
+                <div className="min-w-0 flex-1"><input list="external-player-names" aria-label={`Jogador do ${index + 1}º lugar`} placeholder="Jogador" value={row.playerName} onChange={(e) => { const name = e.target.value; const same = people.filter((p) => p.name.toLowerCase() === name.trim().toLowerCase()); setRows(rows.map((r, i) => i === index ? { ...r, playerName: name, profileId: same.length === 1 ? same[0].id : '' } : r)); }} className="h-9 w-full rounded-lg border border-white/10 bg-[#081f18] px-3 text-sm text-white outline-none focus:border-[#d7b66a]/60" />{row.playerName.trim() && <p className={`mt-0.5 text-[10px] ${row.profileId ? 'text-[#65d19e]' : 'text-[#e3c578]'}`}>{row.profileId ? '✓ Cadastrado: aparece na Minha área' : 'Sem cadastro: só no ranking'}</p>}</div>
                 <input aria-label={`Prêmio do ${index + 1}º lugar`} type="number" min="0" step="0.01" placeholder="Prêmio R$" value={row.prize} onChange={(e) => setRows(rows.map((r, i) => i === index ? { ...r, prize: e.target.value } : r))} className="h-9 w-28 rounded-lg border border-white/10 bg-[#081f18] px-2 text-right font-mono text-sm text-white outline-none" />
                 <span className="hidden w-14 text-right text-xs text-[#789087] sm:inline">{pointsForPosition(index + 1)} pts</span>
                 <button type="button" aria-label="Subir" disabled={index === 0} onClick={() => move(index, -1)} className="grid size-8 place-items-center rounded-lg text-[#8da79e] hover:bg-white/5 disabled:opacity-30"><ArrowUp className="size-4" /></button>
@@ -104,7 +105,7 @@ export function ExternalTournaments() {
               </li>
             ))}
           </ol>
-          <button type="button" onClick={() => setRows([...rows, { playerName: '', prize: '' }])} className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-[#c7d2cd] hover:bg-white/5"><Plus className="size-3.5" /> Adicionar posição</button>
+          <button type="button" onClick={() => setRows([...rows, { playerName: '', prize: '', profileId: '' }])} className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-[#c7d2cd] hover:bg-white/5"><Plus className="size-3.5" /> Adicionar posição</button>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 pt-5">
