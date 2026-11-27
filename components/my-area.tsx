@@ -53,7 +53,19 @@ export function MyArea({ embedded = false }: { embedded?: boolean } = {}) {
 
           <section className="panel mt-4 overflow-hidden rounded-[22px] border border-[#c9a45a]/20">
             <div className="border-b border-white/8 px-5 py-4"><h2 className="text-base font-bold">Torneios de {data.stats.year}</h2></div>
-            <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm">
+            <ul className="divide-y divide-white/8 sm:hidden">
+              {data.stats.history.map((l) => (
+                <li key={l.tournamentId} className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><p className="font-semibold text-[#f7edcf]">{l.name}{l.external && <span className="ml-2 rounded-full bg-white/8 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.08em] text-[#a48e6a]">externo</span>}</p><p className="mt-0.5 font-mono text-xs text-[#a48e6a]">{l.date ? new Date(l.date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'}</p></div>
+                    <span className={`shrink-0 text-sm ${l.position && l.position <= 3 ? 'font-bold text-[#e3c578]' : 'text-[#f0e1b5]'}`}>{l.position ? `${l.position}º` : '—'}{l.position && l.fieldSize ? <span className="text-xs font-normal text-[#8b7352]"> de {l.fieldSize}</span> : null}</span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs"><div><p className="text-[10px] uppercase tracking-[.1em] text-[#8b7352]">Investido</p><p className="font-mono">{l.external && !l.invested ? '—' : money(l.invested)}</p></div><div><p className="text-[10px] uppercase tracking-[.1em] text-[#8b7352]">Prêmio</p><p className="font-mono">{l.prize ? money(l.prize) : '—'}</p></div><div className="text-right"><p className="text-[10px] uppercase tracking-[.1em] text-[#8b7352]">Saldo</p><p className={`font-mono font-semibold ${tone(l.balance)}`}>{signed(l.balance)}</p></div></div>
+                </li>
+              ))}
+              {!data.stats.history.length && <li className="px-5 py-12 text-center text-sm text-[#a48e6a]">Você ainda não tem torneios encerrados em {data.stats.year}.</li>}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block"><table className="w-full min-w-[620px] text-left text-sm">
               <thead className="text-[10px] uppercase tracking-[.12em] text-[#a48e6a]"><tr><th className="px-5 py-3">Data</th><th className="py-3">Torneio</th><th className="py-3 text-center">Colocação</th><th className="py-3 text-right">Investido</th><th className="py-3 text-right">Prêmio</th><th className="px-5 py-3 text-right">Saldo</th></tr></thead>
               <tbody>
                 {data.stats.history.map((l) => (
